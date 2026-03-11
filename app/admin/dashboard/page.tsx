@@ -67,22 +67,33 @@ export default function AdminDashboard() {
     <main className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-16 relative">
       <ModalNotif isOpen={modal.isOpen} type={modal.type as any} title={modal.title} message={modal.message} onClose={() => setModal({ ...modal, isOpen: false })} />
 
-      {/* --- HEADER LIGHT --- */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-[50] shadow-sm">
-        <div>
-          <h1 className="text-xl font-black text-slate-800 tracking-tight">Command Center <span className="text-emerald-600">DLH</span></h1>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">Monitoring Bank Sampah 2026</p>
+{/* --- HEADER ANTI-PENYOK --- */}
+      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-4 flex justify-between items-center sticky top-0 z-[50] shadow-sm">
+        
+        {/* 1. Bagian Kiri (Teks) - Dikasih flex-1 dan min-w-0 biar nggak kegencet */}
+        <div className="flex-1 min-w-0 mr-4">
+          <h1 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight truncate">
+            Command Center <span className="text-emerald-600">DLH</span>
+          </h1>
+          <p className="text-[8px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1 truncate">
+            Monitoring Bank Sampah 2026
+          </p>
         </div>
-        <div className="flex items-center gap-4">
+
+        {/* 2. Bagian Kanan (Tombol) - Dikasih shrink-0 biar ukurannya nggak mengecil */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <TombolLogout />
           <div className="flex items-center gap-3">
-            <div className="text-right hidden md:block">
+            <div className="text-right hidden md:block border-l border-slate-200 pl-4 ml-1">
               <p className="text-sm font-black text-slate-800 leading-none">Admin Utama</p>
               <p className="text-[10px] font-bold text-emerald-600 uppercase mt-1 tracking-wider">Sragen Regency</p>
             </div>
-            <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center font-black border border-emerald-200">DLH</div>
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center font-black border border-emerald-200 text-sm">
+              DLH
+            </div>
           </div>
         </div>
+
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8 space-y-6">
