@@ -11,22 +11,22 @@ export async function POST(req: Request) {
     console.log("2. Password di sistem (ENV):", process.env.ADMIN_PASSWORD);
     // ---------------------
 
-    // 1. JALUR VIP: Cek Login Admin Utama
-    if (username === "admin" && password === process.env.ADMIN_PASSWORD) {
+// 1. JALUR VIP: Cek Login Admin Utama (Pake .trim() buat motong spasi gaib)
+    if (username === "admin" && password === process.env.ADMIN_PASSWORD?.trim()) {
       return NextResponse.json({ message: "Login sukses", role: "admin" }, { status: 200 });
     }
 
     // 2. JALUR JURI: Cek Login 4 Instansi Penilai
-    if (username === "juri_dlh" && password === process.env.JURI_DLH_PASSWORD) {
+    if (username === "juri_dlh" && password === process.env.JURI_DLH_PASSWORD?.trim()) {
       return NextResponse.json({ message: "Login sukses", role: "juri_dlh" }, { status: 200 });
     }
-    if (username === "juri_dkk" && password === process.env.JURI_DKK_PASSWORD) {
+    if (username === "juri_dkk" && password === process.env.JURI_DKK_PASSWORD?.trim()) {
       return NextResponse.json({ message: "Login sukses", role: "juri_dkk" }, { status: 200 });
     }
-    if (username === "juri_bsi" && password === process.env.JURI_BSI_PASSWORD) {
+    if (username === "juri_bsi" && password === process.env.JURI_BSI_PASSWORD?.trim()) {
       return NextResponse.json({ message: "Login sukses", role: "juri_bsi" }, { status: 200 });
     }
-    if (username === "juri_pmd" && password === process.env.JURI_PMD_PASSWORD) {
+    if (username === "juri_pmd" && password === process.env.JURI_PMD_PASSWORD?.trim()) {
       return NextResponse.json({ message: "Login sukses", role: "juri_pmd" }, { status: 200 });
     }
 
