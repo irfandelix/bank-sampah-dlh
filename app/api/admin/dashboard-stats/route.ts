@@ -12,15 +12,18 @@ export async function GET() {
     const semuaUser = await User.find({}).lean();
     console.log("ISI DATABASE SAAT INI:", semuaUser);
 
-    // 1. Ambil Klasemen (Filter role peserta)
-    const klasemen = await User.find({ role: "peserta" })
+// 1. Ambil Klasemen (Gunakan Regex agar "PESERTA" atau "peserta" dua-duanya ketemu)
+    const klasemen = await User.find({ role: { $regex: /^peserta$/i } })
       .select("namaInstansi username skor kecamatan")
       .sort({ skor: -1 })
       .lean();
 
-    // 2. Hitung Statistik
-    const totalPeserta = await User.countDocuments({ role: "peserta" });
-    const sudahDinilai = await User.countDocuments({ role: "peserta", skor: { $gt: 0 } });
+    // 2. Hitung Statistik (Sama, pakai Regex 'i' untuk case-insensitive)
+    const totalPeserta = await User.countDocuments({ role: { $regex: /^peserta$/i } });
+    const sudahDinilai = await User.countDocuments({ 
+      role: { $regex: /^peserta$/i }, 
+      skor: { $gt: 0 } 
+    });
 
     return NextResponse.json({
       debug_total_semua_user: semuaUser.length, // Tambahan buat ngecek
