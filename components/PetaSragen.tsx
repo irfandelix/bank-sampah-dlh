@@ -121,8 +121,9 @@ return (
         preferCanvas={true}
       >
         {/* Menggunakan basemap Dark Mode agar senada dengan Dashboard baru kita */}
-        <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
-        
+        <TileLayer
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+        />
         <GeoJSON 
           // ✅ KUNCI SAKTI: Biar peta update setiap kali ada skor yang berubah
           key={JSON.stringify(dataKlasemen)} 
