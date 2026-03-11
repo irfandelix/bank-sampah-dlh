@@ -44,7 +44,7 @@ export default function FormPenilaianJuri() {
 
         if (res.ok && data.isLocked) {
           setIsLocked(true);
-          setSkorPaten(data.nilaiLama); // 👈 TAMBAH INI
+          setSkorPaten(data.nilaiLama); 
           
           // 🔥 MUNCULKAN KEMBALI TOMBOL YANG DULU DIPILIH DARI DATABASE
           if (data.detailLama) {
@@ -141,21 +141,42 @@ export default function FormPenilaianJuri() {
     }
   };
 
-  if (!user) return <div className="p-10 text-center font-bold text-slate-500">Memuat Form Penilaian...</div>;
+  if (!user) return <div className="p-10 text-center font-bold text-slate-500 flex items-center justify-center h-screen">Memuat Form Penilaian...</div>;
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-28 relative font-sans text-slate-900">
+    // ✅ Tambah pt-[100px] dan pb-32 biar form nggak ketutup header dan footer
+    <main className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-32 pt-[100px] relative">
       <ModalNotif isOpen={modal.isOpen} type={modal.type as any} title={modal.title} message={modal.message} onClose={() => setModal({ ...modal, isOpen: false })} />
 
-      <header className="bg-emerald-700 text-white p-5 shadow-md sticky top-0 z-20 flex justify-between items-center rounded-b-3xl">
-        <div>
-          <p className="text-[10px] font-bold text-emerald-200 uppercase tracking-widest">Aplikasi Penilaian</p>
-          <h1 className="text-lg font-black tracking-tight">{user.namaInstansi || user.nama || user.role.replace('_', ' ').toUpperCase()}</h1>
+      {/* --- HEADER JURI BAJA ANTI-PENYOK --- */}
+      <header className="bg-white border-b border-slate-200 px-4 sm:px-8 h-[80px] flex justify-between items-center fixed top-0 left-0 w-full z-[9999] shadow-sm box-border">
+        
+        {/* Bagian Kiri (Teks & Nama Instansi Dinamis) */}
+        <div className="flex flex-col justify-center min-w-0 mr-4">
+          <h1 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight leading-none truncate">
+            {user.namaInstansi || user.nama || user.role.replace('_', ' ').toUpperCase()}
+          </h1>
+          <p className="text-[9px] sm:text-[10px] text-emerald-600 font-bold uppercase tracking-widest mt-1.5 leading-none truncate">
+            Panel Penilaian Juri
+          </p>
         </div>
-        <TombolLogout />
+
+        {/* Bagian Kanan (Tombol & Profil) */}
+        <div className="flex items-center gap-3 shrink-0">
+          <TombolLogout />
+          <div className="flex items-center gap-3 border-l border-slate-200 pl-4 ml-1">
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-black text-slate-800 leading-none uppercase">Tim Penilai</p>
+              <p className="text-[10px] font-bold text-emerald-600 uppercase mt-1 tracking-wider leading-none">Sragen Regency</p>
+            </div>
+            <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center font-black border border-emerald-200 text-xs shrink-0">
+              JURI
+            </div>
+          </div>
+        </div>
       </header>
 
-      <div className="max-w-3xl mx-auto p-4 mt-2 space-y-6">
+      <div className="max-w-3xl mx-auto px-4 mt-2 space-y-6">
         
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 relative overflow-hidden">
           {isLocked && <div className="absolute top-0 left-0 w-full h-1.5 bg-amber-500"></div>}
@@ -270,14 +291,13 @@ export default function FormPenilaianJuri() {
 
       </div>
 
-{/* --- PANEL BAWAH --- */}
+      {/* --- PANEL BAWAH --- */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-[0_-15px_30px_rgba(0,0,0,0.08)] z-20 flex justify-between items-center px-6 rounded-t-3xl">
         <div className="flex-1">
           <p className="text-[10px] font-bold text-slate-400 uppercase">Kontribusi Nilai</p>
           <p className="text-3xl font-black text-emerald-600 leading-none mt-1">
             {hitungSkorAkhir()} 
             <span className="text-sm text-slate-400 font-bold ml-1"> 
-              {/* 🔥 PASTIKAN PAKE toLowerCase() JUGA DI SINI */}
               / {user?.role?.toLowerCase() === "juri_dlh" ? "40" : user?.role?.toLowerCase() === "juri_dkk" ? "20" : user?.role?.toLowerCase() === "juri_bsi" ? "25" : "15"}
             </span>
           </p>
