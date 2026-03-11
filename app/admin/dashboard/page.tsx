@@ -17,7 +17,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState({ isOpen: false, type: "", title: "", message: "" });
   
-  // 🔍 REF & STATE UNTUK HIGHLIGHT
+  // 🔍 REF & STATE UNTUK HIGHLIGHT PERUBAHAN RANK
   const prevKlasemenRef = useRef<any[]>([]);
   const [changedIds, setChangedIds] = useState<string[]>([]);
 
@@ -26,28 +26,24 @@ export default function AdminDashboard() {
       const res = await fetch("/api/admin/dashboard-stats");
       const data = await res.json();
       if (res.ok) {
-        // DETEKSI PERUBAHAN POSISI
+        // Logika Deteksi Naik Peringkat
         if (prevKlasemenRef.current.length > 0) {
           const newChangedIds: string[] = [];
-          
           data.klasemen.forEach((item: any, index: number) => {
             const oldIndex = prevKlasemenRef.current.findIndex(p => p.username === item.username);
-            // Jika posisi sekarang (index) lebih kecil (naik) dibanding posisi lama (oldIndex)
             if (oldIndex !== -1 && index < oldIndex) {
               newChangedIds.push(item.username);
             }
           });
-
           if (newChangedIds.length > 0) {
             setChangedIds(newChangedIds);
-            // Hilangkan highlight setelah 5 detik
-            setTimeout(() => setChangedIds([]), 5000);
+            setTimeout(() => setChangedIds([]), 5000); // Hilangkan efek glow setelah 5 detik
           }
         }
 
         setKlasemen(data.klasemen);
         setStats(data.stats);
-        prevKlasemenRef.current = data.klasemen; // Simpan untuk perbandingan berikutnya
+        prevKlasemenRef.current = data.klasemen;
 
         if (isManual) {
           setModal({ isOpen: true, type: "success", title: "Data Terupdate", message: "Data klasemen terbaru berhasil ditarik." });
@@ -79,7 +75,11 @@ export default function AdminDashboard() {
         <div className="flex items-center gap-4">
           <TombolLogout />
           <div className="flex items-center gap-3">
-             <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center font-bold border border-emerald-500/20 shadow-lg shadow-emerald-500/5">DLH</div>
+            <div className="text-right hidden md:block">
+              <p className="text-sm font-black text-white leading-none">Admin Utama</p>
+              <p className="text-[10px] font-bold text-emerald-400 uppercase mt-1 tracking-wider">Sragen Regency</p>
+            </div>
+            <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center font-bold border border-emerald-500/20">DLH</div>
           </div>
         </div>
       </header>
@@ -121,20 +121,19 @@ export default function AdminDashboard() {
             
             <div className="space-y-3 overflow-y-auto pr-2 flex-1 custom-scrollbar-dark scroll-smooth">
               {loading ? (
-                <div className="flex flex-col items-center justify-center h-full opacity-20">
-                  <div className="w-10 h-10 border-4 border-slate-700 border-t-emerald-500 rounded-full animate-spin mb-4"></div>
+                <div className="flex items-center justify-center h-full opacity-20">
+                  <div className="w-8 h-8 border-4 border-slate-700 border-t-emerald-500 rounded-full animate-spin"></div>
                 </div>
               ) : (
                 klasemen.map((kec, index) => {
                   const isTop3 = index < 3;
-                  const isHighlight = changedIds.includes(kec.username); // 🟢 CEK APAKAH LAGI NAIK RANK
-
+                  const isHighlight = changedIds.includes(kec.username);
                   return (
                     <div 
                       key={kec.username} 
-                      className={`p-4 rounded-2xl border transition-all duration-700 group ${
-                        isHighlight ? "animate-rank-up border-emerald-500 shadow-lg shadow-emerald-500/20 scale-[1.02]" :
-                        index === 0 ? "bg-amber-500/5 border-amber-500/20 shadow-lg shadow-amber-500/5" :
+                      className={`p-4 rounded-2xl border transition-all duration-700 ${
+                        isHighlight ? "animate-rank-up border-emerald-500 bg-emerald-500/10 scale-[1.02]" :
+                        index === 0 ? "bg-amber-500/5 border-amber-500/20 shadow-lg" :
                         index === 1 ? "bg-slate-500/5 border-slate-500/20" :
                         index === 2 ? "bg-orange-500/5 border-orange-500/20" :
                         "bg-[#0f172a]/40 border-slate-800 hover:border-slate-700"
@@ -147,19 +146,16 @@ export default function AdminDashboard() {
                             index === 1 ? "bg-slate-400 text-black" :
                             index === 2 ? "bg-orange-500 text-black" :
                             "bg-slate-800 text-slate-500"
-                          }`}>
-                            {index + 1}
-                          </div>
+                          }`}>{index + 1}</div>
                           <div>
                             <h3 className={`font-black text-sm ${isTop3 ? 'text-white' : 'text-slate-300'}`}>{kec.namaInstansi}</h3>
-                            <p className="text-[9px] font-bold text-slate-600 uppercase mt-0.5">Kec. {kec.kecamatan}</p>
+                            <p className="text-[9px] font-bold text-slate-600 uppercase">Kec. {kec.kecamatan}</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className={`text-xl font-black leading-none ${isHighlight ? 'text-white animate-pulse' : 'text-emerald-400'}`}>
+                          <p className={`text-xl font-black ${isHighlight ? 'text-white animate-pulse' : 'text-emerald-400'}`}>
                             {Number(kec.skor).toFixed(2)}
                           </p>
-                          {isHighlight && <p className="text-[8px] font-black text-emerald-400 uppercase mt-1 tracking-tighter">New Rank! ⚡</p>}
                         </div>
                       </div>
                     </div>
@@ -172,17 +168,69 @@ export default function AdminDashboard() {
 
         {/* --- PANEL KENDALI --- */}
         <div className="bg-gradient-to-r from-[#1e293b] to-[#0f172a] p-8 rounded-[2.5rem] border border-slate-800 flex items-center justify-between shadow-2xl">
-          <div className="flex items-center gap-6 text-white">
+          <div className="flex items-center gap-6">
             <div className="w-16 h-16 bg-[#0f172a] rounded-2xl flex items-center justify-center text-3xl shadow-inner border border-slate-800">🛠️</div>
             <div>
-              <h3 className="font-black text-xl">Panel Kendali Utama</h3>
-              <p className="text-sm text-slate-500 font-medium tracking-tight">Status: Sistem Berjalan Normal</p>
+              <h3 className="font-black text-xl text-white">Panel Kendali Utama</h3>
+              <p className="text-sm text-slate-500 font-medium">Manajemen basis data dan konfigurasi sistem</p>
             </div>
           </div>
           <div className="flex gap-3">
-            <Link href="/admin/akun" className="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 px-10 rounded-2xl transition-all active:scale-95 shadow-lg shadow-emerald-500/20 uppercase text-xs tracking-widest">
+            <Link href="/admin/akun" className="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 px-10 rounded-2xl transition-all active:scale-95 shadow-lg uppercase text-xs tracking-widest">
                Kelola Peserta
             </Link>
+            <button onClick={() => fetchDashboardData(true)} className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-black py-4 px-8 rounded-2xl transition-all uppercase text-xs tracking-widest border border-slate-700">
+               Refresh
+            </button>
+          </div>
+        </div>
+
+        {/* ✅ TABEL YANG SEMPAT HILANG DIKEMBALIKAN DI SINI ✅ */}
+        <div className="bg-[#1e293b] rounded-[2.5rem] border border-slate-800 overflow-hidden shadow-2xl">
+          <div className="p-8 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-black text-white">Daftar Akun Bank Sampah</h2>
+              <p className="text-sm text-slate-500 font-medium mt-1 uppercase tracking-widest text-[10px]">Database Terintegrasi 2026</p>
+            </div>
+            <span className="bg-[#0f172a] text-slate-400 font-black px-5 py-2 rounded-full text-[10px] border border-slate-800 tracking-widest uppercase">
+              {klasemen.length} Entitas
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-[#0f172a]/50 text-slate-500 font-black uppercase text-[10px] tracking-widest border-b border-slate-800">
+                <tr>
+                  <th className="py-6 px-10">No</th>
+                  <th className="py-6 px-6">Identitas Bank Sampah</th>
+                  <th className="py-6 px-6">Login ID</th>
+                  <th className="py-6 px-10 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/50">
+                {klasemen.map((peserta, idx) => (
+                  <tr key={peserta.username} className="hover:bg-white/5 transition-colors group">
+                    <td className="py-6 px-10 font-bold text-slate-700">{idx + 1}</td>
+                    <td className="py-6 px-6">
+                       <p className="font-black text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight">{peserta.namaInstansi}</p>
+                       <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Kec. {peserta.kecamatan}</p>
+                    </td>
+                    <td className="py-6 px-6">
+                      <code className="bg-[#0f172a] text-emerald-500 px-4 py-2 rounded-xl text-xs font-bold border border-slate-800">
+                        {peserta.username}
+                      </code>
+                    </td>
+                    <td className="py-6 px-10 text-right">
+                      <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border font-black text-[10px] tracking-widest ${
+                        peserta.skor > 0 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-slate-800/50 text-slate-500 border-slate-800"
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${peserta.skor > 0 ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-slate-700 animate-pulse"}`}></span> 
+                        {peserta.skor > 0 ? "VERIFIED" : "PENDING"}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -197,9 +245,7 @@ export default function AdminDashboard() {
           50% { background-color: rgba(16, 185, 129, 0.2); }
           100% { background-color: rgba(16, 185, 129, 0); }
         }
-        .animate-rank-up {
-          animation: rank-up 2s ease-in-out infinite;
-        }
+        .animate-rank-up { animation: rank-up 2s ease-in-out infinite; }
       `}</style>
     </main>
   );
