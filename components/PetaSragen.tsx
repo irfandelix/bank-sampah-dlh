@@ -22,25 +22,31 @@ export default function PetaSragen({ dataKlasemen }: { dataKlasemen: any[] }) {
     return () => setMounted(false);
   }, []);
 
-const styleWilayah = (feature: any) => {
-    // 🔍 TIPS: Pastikan di GeoJSON-mu kolomnya memang 'kecamatan'. 
-    // Kalau nggak muncul, coba ganti jadi 'NAMOBJ' atau 'name'.
-    const namaKecPeta = feature.properties.kecamatan || feature.properties.NAMOBJ || feature.properties.name || ""; 
+  const styleWilayah = (feature: any) => {
+    // 1. Ambil nama dari peta (sudah benar pakai .kecamatan)
+    const namaKecPeta = feature.properties.kecamatan || ""; 
     
-    // Cari data kecamatan di klasemen
-    const dataKec = dataKlasemen.find((k) => 
-      k.kecamatan && k.kecamatan.toString().toLowerCase().trim() === namaKecPeta.toString().toLowerCase().trim()
-    );
+    // 2. Cari di data klasemen
+    const dataKec = dataKlasemen.find((k) => {
+      // 🕵️‍♂️ CCTV: Kita cek apakah field 'kecamatan' ada di database
+      if (!k.kecamatan) {
+        console.error("⚠️ PERINGATAN: Field 'kecamatan' tidak ditemukan di objek:", k);
+        return false;
+      }
+      return k.kecamatan.toString().toLowerCase().trim() === namaKecPeta.toLowerCase().trim();
+    });
 
     const skor = dataKec ? dataKec.skor : 0;
 
-    // debug sebentar (bisa dihapus kalau sudah jalan)
-    // if(skor > 0) console.log(`Match! ${namaKecPeta} Skor: ${skor}`);
+    // 🕵️‍♂️ CCTV: Munculkan di Console kalau berhasil match
+    if (skor > 0) {
+      console.log(`✅ MATCH! Kecamatan ${namaKecPeta} dapat skor ${skor}`);
+    }
 
     return {
       fillColor: skor >= 80 ? "#059669" : 
                  skor >= 50 ? "#10b981" : 
-                 skor > 0   ? "#f59e0b" : "#334155", // Warna dasar mode gelap (abu tua)
+                 skor > 0   ? "#f59e0b" : "#334155", // Warna dasar abu tua
       color: "#1e293b", 
       weight: 1,
       opacity: 1,
