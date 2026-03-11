@@ -183,20 +183,32 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* --- PANEL KENDALI --- */}
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-6">
-            <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl border border-slate-200 shadow-inner">🛠️</div>
+{/* --- PANEL KENDALI LIGHT (SUDAH DIPERBAIKI) --- */}
+        <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 shadow-sm overflow-hidden">
+          
+          {/* Bagian Kiri: Icon & Tulisan */}
+          <div className="flex items-center gap-4 md:gap-6">
+            <div className="flex-none w-14 h-14 md:w-16 md:h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-2xl md:text-3xl border border-slate-200 shadow-inner">
+              🛠️
+            </div>
             <div>
-              <h3 className="font-black text-xl text-slate-800">Panel Kendali Utama</h3>
-              <p className="text-sm text-slate-500 font-medium">Manajemen basis data dan konfigurasi sistem</p>
+              <h3 className="font-black text-lg md:text-xl text-slate-800">Panel Kendali Utama</h3>
+              <p className="text-xs md:text-sm text-slate-500 font-medium">Manajemen basis data dan konfigurasi sistem</p>
             </div>
           </div>
-          <div className="flex gap-3">
-            <Link href="/admin/akun" className="bg-slate-900 hover:bg-black text-white font-black py-4 px-10 rounded-2xl transition-all active:scale-95 shadow-md uppercase text-xs tracking-widest">
+
+          {/* Bagian Kanan: Tombol-tombol */}
+          <div className="flex flex-wrap gap-3 w-full lg:w-auto">
+            <Link 
+              href="/admin/akun" 
+              className="flex-1 lg:flex-none bg-slate-900 hover:bg-black text-white font-black py-4 px-6 md:px-10 rounded-2xl transition-all active:scale-95 shadow-md uppercase text-[10px] md:text-xs tracking-widest text-center"
+            >
                Kelola Peserta
             </Link>
-            <button onClick={() => fetchDashboardData(true)} className="bg-white hover:bg-slate-50 text-slate-700 font-black py-4 px-8 rounded-2xl transition-all uppercase text-xs tracking-widest border border-slate-200 shadow-sm">
+            <button 
+              onClick={() => fetchDashboardData(true)} 
+              className="flex-1 lg:flex-none bg-white hover:bg-slate-50 text-slate-700 font-black py-4 px-6 md:px-8 rounded-2xl transition-all uppercase text-[10px] md:text-xs tracking-widest border border-slate-200 shadow-sm"
+            >
                Refresh
             </button>
           </div>
