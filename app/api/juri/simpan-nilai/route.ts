@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ error: "Peserta tidak ditemukan" }, { status: 404 });
 
     // Paksa role jadi huruf kecil agar cocok dengan mapping
-    const roleKey = juriRole.toLowerCase();
+    const roleInput = juriRole?.toLowerCase();
 
     const mappingField: any = {
       "juri_dlh": "skorDLH",
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
       "juri_pmd": "skorPMD",
     };
 
-    const targetField = mappingField[roleKey];
+    const targetField = mappingField[roleInput];
     if (!targetField) return NextResponse.json({ error: "Role juri tidak valid" }, { status: 400 });
 
     // 🔒 CEK APAKAH SUDAH ADA NILAI (LOCKING)
