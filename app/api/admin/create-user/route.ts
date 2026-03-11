@@ -5,18 +5,17 @@ import User from "@/lib/models/User";
 
 export async function POST(request: Request) {
   try {
-    // 1. Tangkap data yang dikirim dari form Admin
     const body = await request.json();
-    const { username, password, role, namaInstansi } = body;
+    // ✅ 1. Tangkap 'kecamatan' dari form Admin
+    const { username, password, role, namaInstansi, kecamatan } = body;
 
-    if (!username || !password || !role || !namaInstansi) {
-      return NextResponse.json({ error: "Semua data wajib diisi!" }, { status: 400 });
+    // ✅ 2. Tambahkan validasi agar kecamatan wajib diisi
+    if (!username || !password || !role || !namaInstansi || !kecamatan) {
+      return NextResponse.json({ error: "Semua data wajib diisi, termasuk Kecamatan!" }, { status: 400 });
     }
 
-    // 2. Hubungkan ke Brankas MongoDB
     await connectMongoDB();
 
-    // Cek apakah username sudah dipakai
     const existingUser = await User.findOne({ username });
     if (existingUser) {
       return NextResponse.json({ error: "Username sudah terdaftar, gunakan yang lain!" }, { status: 400 });
@@ -24,9 +23,7 @@ export async function POST(request: Request) {
 
     let driveFolderId = "";
 
-    // 3. JIKA PERANNYA PESERTA, BUATKAN FOLDER KHUSUS DI GOOGLE DRIVE
     if (role === "PESERTA") {
-      // Siapkan kunci Google dari .env
       const oauth2Client = new google.auth.OAuth2(
         process.env.GOOGLE_CLIENT_ID,
         process.env.GOOGLE_CLIENT_SECRET,
@@ -35,11 +32,10 @@ export async function POST(request: Request) {
       oauth2Client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
       const drive = google.drive({ version: "v3", auth: oauth2Client });
 
-      // Perintahkan Google Drive membuat folder baru
       const folderMetadata = {
-        name: namaInstansi, // Nama folder sama dengan nama Instansi (Misal: BS Gemolong)
+        name: namaInstansi,
         mimeType: "application/vnd.google-apps.folder",
-        parents: [process.env.GOOGLE_DRIVE_FOLDER_ID as string], // Masukkan ke dalam folder Database utama
+        parents: [process.env.GOOGLE_DRIVE_FOLDER_ID as string],
       };
 
       const folder = await drive.files.create({
@@ -47,36 +43,33 @@ export async function POST(request: Request) {
         fields: "id",
       });
 
-      // Simpan ID Folder yang baru dibuat
       driveFolderId = folder.data.id || "";
       console.log(`📁 Folder Google Drive berhasil dibuat untuk ${namaInstansi}`);
     }
 
-    // 4. SIMPAN SEMUA DATA KE MONGODB
+    // ✅ 3. Simpan 'kecamatan' ke MongoDB
     const newUser = new User({
       username,
-      password, // Ingat: Untuk versi produksi sungguhan nanti, password ini wajib di-hash (enkripsi)
+      password, 
       role,
       namaInstansi,
-      driveFolderId, // ID Folder Drive akan tersimpan di sini (jika dia peserta)
+      kecamatan, // <--- INI TAMBAHANNYA
+      driveFolderId, 
     });
 
     await newUser.save();
-    console.log(`✅ Akun ${username} berhasil disimpan ke MongoDB!`);
+    console.log(`✅ Akun ${username} berhasil disimpan ke MongoDB di Kecamatan ${kecamatan}!`);
 
-    // 5. Berikan laporan sukses ke Admin
     return NextResponse.json({ 
       pesan: "Akun dan Folder berhasil dibuat!",
-      data: { username, role, driveFolderId }
+      data: { username, role, driveFolderId, kecamatan }
     }, { status: 201 });
 
-    } catch (error: any) {
-    // KODE DETEKTIF: Menampilkan pesan error asli dari Google
-        console.error("Detail Error Google Drive:", error.response?.data || error.message);
-    
-        return NextResponse.json(
-            { error: "Gagal membuat akun peserta." },
-            { status: 500 }
-        );
-    }
+  } catch (error: any) {
+    console.error("Detail Error Google Drive:", error.response?.data || error.message);
+    return NextResponse.json(
+      { error: "Gagal membuat akun peserta." },
+      { status: 500 }
+    );
+  }
 }

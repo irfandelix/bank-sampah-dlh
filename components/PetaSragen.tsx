@@ -25,7 +25,7 @@ export default function PetaSragen({ dataKlasemen }: { dataKlasemen: any[] }) {
   const styleWilayah = (feature: any) => {
     const namaKec = feature.properties.kecamatan || ""; 
     const dataKec = dataKlasemen.find((k) => 
-      k.namaInstansi.toLowerCase().includes(namaKec.toLowerCase())
+      k.kecamatan && k.kecamatan.toLowerCase() === namaKec.toLowerCase()
     );
     const skor = dataKec ? dataKec.skor : 0;
 

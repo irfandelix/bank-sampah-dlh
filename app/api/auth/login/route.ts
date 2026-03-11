@@ -1,66 +1,48 @@
 import { NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
-import User from "@/lib/models/User";
+import User from "@/lib/models/User"; 
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
-    const body = await request.json();
-    const { username, password } = body;
+    const { username, password } = await req.json();
 
-    if (!username || !password) {
-      return NextResponse.json({ error: "Username dan Password wajib diisi!" }, { status: 400 });
-    }
-
-    // ==========================================
-    // 1. CEK JALUR RAHASIA (BACA DARI FILE .env)
-    // ==========================================
+    // 1. JALUR VIP: Cek Login Admin Utama
     if (username === "admin" && password === process.env.ADMIN_PASSWORD) {
-      return NextResponse.json({ pesan: "Login berhasil!", user: { username: "admin", role: "admin", namaInstansi: "Command Center" } }, { status: 200 });
+      return NextResponse.json({ message: "Login sukses", role: "admin" }, { status: 200 });
     }
+
+    // 2. JALUR JURI: Cek Login 4 Instansi Penilai
     if (username === "juri_dlh" && password === process.env.JURI_DLH_PASSWORD) {
-      return NextResponse.json({ pesan: "Login berhasil!", user: { username: "juri_dlh", role: "juri_dlh", namaInstansi: "Tim Penilai DLH" } }, { status: 200 });
+      return NextResponse.json({ message: "Login sukses", role: "juri_dlh" }, { status: 200 });
     }
-    if (username === "juri_bapperida" && password === process.env.JURI_BAPPERIDA_PASSWORD) {
-      return NextResponse.json({ pesan: "Login berhasil!", user: { username: "juri_bapperida", role: "juri_bapperida", namaInstansi: "Tim Penilai Bapperida" } }, { status: 200 });
+    if (username === "juri_dkk" && password === process.env.JURI_DKK_PASSWORD) {
+      return NextResponse.json({ message: "Login sukses", role: "juri_dkk" }, { status: 200 });
+    }
+    if (username === "juri_bsi" && password === process.env.JURI_BSI_PASSWORD) {
+      return NextResponse.json({ message: "Login sukses", role: "juri_bsi" }, { status: 200 });
     }
     if (username === "juri_pmd" && password === process.env.JURI_PMD_PASSWORD) {
-      return NextResponse.json({ pesan: "Login berhasil!", user: { username: "juri_pmd", role: "juri_pmd", namaInstansi: "Tim Penilai PMD" } }, { status: 200 });
+      return NextResponse.json({ message: "Login sukses", role: "juri_pmd" }, { status: 200 });
     }
 
-    // ==========================================
-    // 2. CEK JALUR UMUM (PESERTA DI MONGODB)
-    // ==========================================
-    
-    // 1. Buka koneksi ke brankas MongoDB
+    // 3. JALUR PESERTA: Cek Login Bank Sampah (Cari di Database)
     await connectMongoDB();
-
-    // 2. Cari akun berdasarkan username
-    const user = await User.findOne({ username });
-
-    // 3. Jika username tidak ditemukan
-    if (!user) {
-      return NextResponse.json({ error: "Username tidak terdaftar di sistem." }, { status: 401 });
-    }
-
-    // 4. Jika password salah (Karena ini versi awal, kita cek teks biasa)
-    if (user.password !== password) {
-      return NextResponse.json({ error: "Password salah. Silakan coba lagi." }, { status: 401 });
-    }
-
-    // 5. Jika sukses! Kembalikan data user (TAPI JANGAN KEMBALIKAN PASSWORD-NYA)
-    return NextResponse.json({
-      pesan: "Login berhasil!",
-      user: {
-        username: user.username,
-        // Kita ubah role peserta jadi huruf kecil (peserta) agar sinkron dengan routing di halaman depan
+    const peserta = await User.findOne({ username });
+    
+    // Asumsi password tidak di-hash. Jika kamu pakai bcrypt, gunakan bcrypt.compare()
+    if (peserta && peserta.password === password) { 
+      return NextResponse.json({ 
+        message: "Login sukses", 
         role: "peserta", 
-        namaInstansi: user.namaInstansi,
-        driveFolderId: user.driveFolderId, // Sangat penting untuk upload peserta nanti!
-      }
-    }, { status: 200 });
+        namaInstansi: peserta.namaInstansi 
+      }, { status: 200 });
+    }
+
+    // Jika username/password tidak ada yang cocok di 3 jalur atas
+    return NextResponse.json({ error: "Username atau password salah!" }, { status: 401 });
 
   } catch (error) {
-    console.error("Gagal Login:", error);
-    return NextResponse.json({ error: "Terjadi gangguan pada server." }, { status: 500 });
+    console.error("Error saat login:", error);
+    return NextResponse.json({ error: "Terjadi kesalahan pada server" }, { status: 500 });
   }
 }

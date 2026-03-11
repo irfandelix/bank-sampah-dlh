@@ -4,8 +4,17 @@ import { useState } from "react";
 import Link from "next/link";
 import ModalNotif from "@/components/ModalNotif"; // Memanggil komponen Modal Global
 
+// DAFTAR 20 KECAMATAN DI SRAGEN (Agar Admin tinggal pilih & peta tidak error karena typo)
+const DAFTAR_KECAMATAN = [
+  "Gemolong", "Gesi", "Gondang", "Jenar", "Kalijambe", 
+  "Karangmalang", "Kedawung", "Masaran", "Miri", "Mondokan", 
+  "Ngrampal", "Plupuh", "Sambirejo", "Sambungmacan", "Sidoharjo", 
+  "Sragen", "Sukodono", "Sumberlawang", "Tangen", "Tanon"
+];
+
 export default function ManajemenAkun() {
   const [namaInstansi, setNamaInstansi] = useState("");
+  const [kecamatan, setKecamatan] = useState(""); // ✅ STATE BARU UNTUK KECAMATAN
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,6 +33,7 @@ export default function ManajemenAkun() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           namaInstansi,
+          kecamatan, // ✅ MENGIRIM KECAMATAN KE API
           username,
           password,
           role: "PESERTA",
@@ -39,6 +49,7 @@ export default function ManajemenAkun() {
           text: `Folder Drive untuk ${namaInstansi} berhasil dibuat dan akun siap digunakan!` 
         });
         setNamaInstansi("");
+        setKecamatan(""); // ✅ RESET KECAMATAN
         setUsername("");
         setPassword("");
       } else {
@@ -58,7 +69,7 @@ export default function ManajemenAkun() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800 p-6 sm:p-10 relative">
       
-      {/* --- INI DIA MODAL GLOBALNYA (Hanya 1 Baris!) --- */}
+      {/* --- INI DIA MODAL GLOBALNYA --- */}
       <ModalNotif 
         isOpen={pesan.isOpen} 
         type={pesan.type as "success" | "error" | ""} 
@@ -78,6 +89,7 @@ export default function ManajemenAkun() {
         <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200">
           <form onSubmit={handleBuatAkun} className="space-y-6">
             
+            {/* --- INPUT NAMA INSTANSI --- */}
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">Nama Bank Sampah (Instansi)</label>
               <input
@@ -88,6 +100,23 @@ export default function ManajemenAkun() {
                 placeholder="Contoh: Bank Sampah Gemolong Jaya"
                 className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500 transition-all"
               />
+            </div>
+
+            {/* --- INPUT KECAMATAN (DROPDOWN BARU) --- */}
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Lokasi Kecamatan <span className="text-red-500">*</span></label>
+              <select
+                required
+                value={kecamatan}
+                onChange={(e) => setKecamatan(e.target.value)}
+                className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500 transition-all text-slate-700 font-bold"
+              >
+                <option value="" disabled>-- Pilih Kecamatan di Sragen --</option>
+                {DAFTAR_KECAMATAN.map((kec) => (
+                  <option key={kec} value={kec}>{kec}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-slate-400 mt-1.5 font-bold uppercase tracking-wider">Berfungsi untuk memunculkan titik koordinat di peta Dashboard</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
