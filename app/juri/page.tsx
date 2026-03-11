@@ -77,23 +77,26 @@ export default function FormPenilaianJuri() {
   };
 
   const hitungSkorAkhir = () => {
-    if (!user) return 0;
+    if (!user || !user.role) return 0;
     let total = 0;
 
-    if (user.role === "juri_dlh") {
+    // 🔥 PAKSA JADI HURUF KECIL BIAR COCOK DENGAN RUMUS
+    const role = user.role.toLowerCase();
+
+    if (role === "juri_dlh") {
       const cat1 = (skor["1.1"] || 0) + (skor["1.2"] || 0) + (skor["1.3"] || 0) + (skor["1.4"] || 0) + (skor["1.5"] || 0) + (skor["1.6"] || 0) + (skor["1.7"] || 0);
       const cat1Max = tingkat === "RT" ? 110 : 150;
       total = (cat1 / cat1Max) * 40;
     } 
-    else if (user.role === "juri_dkk") {
+    else if (role === "juri_dkk") {
       const cat2 = (skor["2.1"] || 0) + (skor["2.2"] || 0) + (skor["2.3"] || 0) + (skor["2.4"] || 0);
       total = (cat2 / 40) * 20;
     } 
-    else if (user.role === "juri_bsi") {
+    else if (role === "juri_bsi") {
       const cat3 = (skor["3.1"] || 0) + (skor["3.2"] || 0) + (skor["3.3"] || 0) + (skor["3.4"] || 0) + (skor["3.5"] || 0) + (skor["3.6"] || 0);
       total = (cat3 / 80) * 25;
     }
-    else if (user.role === "juri_pmd") {
+    else if (role === "juri_pmd") {
       const skorKat4 = ((skor["4.1"] || 0) / 20) * 7.5;
       const skorKat5 = ((skor["5.1"] || 0) / 20) * 7.5;
       total = skorKat4 + skorKat5;
@@ -267,15 +270,15 @@ export default function FormPenilaianJuri() {
 
       </div>
 
-    {/* --- PANEL BAWAH --- */}
+{/* --- PANEL BAWAH --- */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-[0_-15px_30px_rgba(0,0,0,0.08)] z-20 flex justify-between items-center px-6 rounded-t-3xl">
         <div className="flex-1">
           <p className="text-[10px] font-bold text-slate-400 uppercase">Kontribusi Nilai</p>
           <p className="text-3xl font-black text-emerald-600 leading-none mt-1">
-            {/* 👇 RAHASIA NYA DI SINI: Kalau ngunci, pakai skorPaten. Kalau belum, hitung manual */}
-            {isLocked ? skorPaten : hitungSkorAkhir()} 
+            {hitungSkorAkhir()} 
             <span className="text-sm text-slate-400 font-bold ml-1"> 
-              / {user.role === "juri_dlh" ? "40" : user.role === "juri_dkk" ? "20" : user.role === "juri_bsi" ? "25" : "15"}
+              {/* 🔥 PASTIKAN PAKE toLowerCase() JUGA DI SINI */}
+              / {user?.role?.toLowerCase() === "juri_dlh" ? "40" : user?.role?.toLowerCase() === "juri_dkk" ? "20" : user?.role?.toLowerCase() === "juri_bsi" ? "25" : "15"}
             </span>
           </p>
         </div>
