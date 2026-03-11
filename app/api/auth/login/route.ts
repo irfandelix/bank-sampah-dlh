@@ -6,6 +6,11 @@ export async function POST(req: Request) {
   try {
     const { username, password } = await req.json();
 
+    // --- CCTV DETEKTIF ---
+    console.log("1. User ngetik:", username, password);
+    console.log("2. Password di sistem (ENV):", process.env.ADMIN_PASSWORD);
+    // ---------------------
+
     // 1. JALUR VIP: Cek Login Admin Utama
     if (username === "admin" && password === process.env.ADMIN_PASSWORD) {
       return NextResponse.json({ message: "Login sukses", role: "admin" }, { status: 200 });
