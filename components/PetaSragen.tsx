@@ -22,46 +22,55 @@ export default function PetaSragen({ dataKlasemen }: { dataKlasemen: any[] }) {
     return () => setMounted(false);
   }, []);
 
-  const styleWilayah = (feature: any) => {
-    // 1. Ambil nama dari peta (sudah benar pakai .kecamatan)
+const styleWilayah = (feature: any) => {
     const namaKecPeta = feature.properties.kecamatan || ""; 
     
-    // 2. Cari di data klasemen
-    const dataKec = dataKlasemen.find((k) => {
-      // 🕵️‍♂️ CCTV: Kita cek apakah field 'kecamatan' ada di database
-      if (!k.kecamatan) {
-        console.error("⚠️ PERINGATAN: Field 'kecamatan' tidak ditemukan di objek:", k);
-        return false;
-      }
-      return k.kecamatan.toString().toLowerCase().trim() === namaKecPeta.toLowerCase().trim();
-    });
+    // 1. Cari index/peringkat di klasemen
+    const peringkatIndex = dataKlasemen.findIndex((k) => 
+      k.kecamatan && k.kecamatan.toString().toLowerCase().trim() === namaKecPeta.toLowerCase().trim()
+    );
 
+    const dataKec = peringkatIndex !== -1 ? dataKlasemen[peringkatIndex] : null;
     const skor = dataKec ? dataKec.skor : 0;
 
-    // 🕵️‍♂️ CCTV: Munculkan di Console kalau berhasil match
-    if (skor > 0) {
-      console.log(`✅ MATCH! Kecamatan ${namaKecPeta} dapat skor ${skor}`);
+    // 2. Tentukan Warna Berdasarkan Peringkat (Juara 1-3)
+    let warnaWilayah = "#334155"; // Warna default (abu tua)
+
+    if (peringkatIndex === 0) {
+      warnaWilayah = "#10b981"; // Juara 1: Hijau Emerald Menyala
+    } else if (peringkatIndex === 1) {
+      warnaWilayah = "#f59e0b"; // Juara 2: Amber/Emas
+    } else if (peringkatIndex === 2) {
+      warnaWilayah = "#ea580c"; // Juara 3: Orange/Perunggu
+    } else if (skor > 0) {
+      warnaWilayah = "#475569"; // Peserta lain yang sudah ada nilai
     }
 
     return {
-      fillColor: skor >= 80 ? "#059669" : 
-                 skor >= 50 ? "#10b981" : 
-                 skor > 0   ? "#f59e0b" : "#334155", // Warna dasar abu tua
-      color: "#1e293b", 
-      weight: 1,
+      fillColor: warnaWilayah,
+      color: peringkatIndex < 3 && peringkatIndex !== -1 ? "#fff" : "#1e293b", // Border putih buat Top 3
+      weight: peringkatIndex === 0 ? 3 : 1, // Garis tepi lebih tebal buat Juara 1
       opacity: 1,
-      fillOpacity: 0.7,
+      fillOpacity: 0.8,
     };
   };
 
   const onEachFeature = (feature: any, layer: any) => {
-    const namaKec = feature.properties.kecamatan || "Tidak Diketahui";
-    layer.bindTooltip(namaKec, {
-      permanent: true,       
-      direction: "center",   
-      className: "label-kecamatan", 
+    const namaKecPeta = feature.properties.kecamatan || "";
+    const peringkatIndex = dataKlasemen.findIndex((k) => 
+      k.kecamatan && k.kecamatan.toString().toLowerCase().trim() === namaKecPeta.toLowerCase().trim()
+    );
+
+    let labelStatus = `Kecamatan ${namaKecPeta}`;
+    if (peringkatIndex === 0) labelStatus = `🏆 Juara 1: ${namaKecPeta}`;
+    else if (peringkatIndex === 1) labelStatus = `🥈 Juara 2: ${namaKecPeta}`;
+    else if (peringkatIndex === 2) labelStatus = `🥉 Juara 3: ${namaKecPeta}`;
+
+    layer.bindTooltip(labelStatus, {
+      permanent: true,
+      direction: "center",
+      className: `label-kecamatan ${peringkatIndex < 3 && peringkatIndex !== -1 ? 'label-juara' : ''}`,
     });
-    layer.bindPopup(`<b>Kecamatan ${namaKec}</b>`);
   };
 
   if (!mounted || typeof window === "undefined") return null;
@@ -87,6 +96,12 @@ return (
         .leaflet-container {
           background: #1e293b !important;
           border-radius: 2rem !important;
+        }
+        .label-juara {
+          color: #ffffff !important;
+          font-size: 11px !important;
+          text-shadow: 0px 0px 8px rgba(0,0,0,1) !important;
+          letter-spacing: 0.05em;
         }
       `}} />
 
