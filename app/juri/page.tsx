@@ -13,7 +13,7 @@ export default function FormPenilaianJuri() {
   const [tingkat, setTingkat] = useState<"RT" | "RW">("RW");
   const [skor, setSkor] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
-  const [isLocked, setIsLocked] = useState(false); // 🔒 STATE GEMBOK BARU
+  const [isLocked, setIsLocked] = useState(false); // 🔒 STATE GEMBOK
   const [modal, setModal] = useState({ isOpen: false, type: "", title: "", message: "" });
 
   // 1. Ambil Data User & Daftar Peserta
@@ -27,7 +27,7 @@ export default function FormPenilaianJuri() {
     fetch("/api/admin/get-peserta").then(res => res.json()).then(data => setDaftarPeserta(data.peserta));
   }, [router]);
 
-  // 2. 🔒 CEK STATUS GEMBOK SETIAP KALI PILIH BANK SAMPAH
+  // 2. 🔒 CEK STATUS GEMBOK & AMBIL JAWABAN LAMA SETIAP KALI PILIH BANK SAMPAH
   useEffect(() => {
     const cekStatusGembok = async () => {
       if (!pesertaTerpilih || !user) {
@@ -38,17 +38,22 @@ export default function FormPenilaianJuri() {
 
       setLoading(true);
       try {
-        // Panggil API Cek Nilai yang Sakti
         const res = await fetch(`/api/juri/cek-nilai?id=${pesertaTerpilih}&role=${user.role}`);
         const data = await res.json();
 
         if (res.ok && data.isLocked) {
           setIsLocked(true);
+          
+          // 🔥 MUNCULKAN KEMBALI TOMBOL YANG DULU DIPILIH DARI DATABASE
+          if (data.detailLama) {
+            setSkor(data.detailLama); 
+          }
+
           setModal({ 
             isOpen: true, 
-            type: "error", 
-            title: "Terkunci! 🔒", 
-            message: "Anda sudah pernah menilai Bank Sampah ini. Data tidak dapat diubah lagi." 
+            type: "success", 
+            title: "Data Ditemukan 🔒", 
+            message: "Anda sedang melihat arsip penilaian untuk Bank Sampah ini. Data tidak dapat diubah." 
           });
         } else {
           setIsLocked(false);
@@ -104,25 +109,25 @@ export default function FormPenilaianJuri() {
 
     setLoading(true);
     try {
-      // 🔒 UBAH API KE SIMPAN-NILAI YANG PUNYA PERTAHANAN GEMBOK
       const res = await fetch("/api/juri/simpan-nilai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          idPeserta: pesertaTerpilih, // Pakai ID Peserta, bukan username lagi
+          idPeserta: pesertaTerpilih, 
           skorBaru: nilaiAkhir, 
-          juriRole: user.role 
+          juriRole: user.role,
+          detailSkor: skor // 🔥 KIRIM JEJAK TOMBOL KE DATABASE
         }),
       });
 
       if (res.ok) {
-        setIsLocked(true); // Langsung kunci layarnya
+        setIsLocked(true); 
         setModal({ isOpen: true, type: "success", title: "Sistem Terkunci 🔒", message: `Skor ${nilaiAkhir} poin telah diamankan secara permanen.` });
         window.scrollTo(0, 0); 
       } else {
         const err = await res.json();
         setModal({ isOpen: true, type: "error", title: "Gagal", message: err.error });
-        if (res.status === 403) setIsLocked(true); // Kunci kalau ditolak server
+        if (res.status === 403) setIsLocked(true); 
       }
     } catch (e) {
       setModal({ isOpen: true, type: "error", title: "Error", message: "Koneksi terputus." });
@@ -131,10 +136,10 @@ export default function FormPenilaianJuri() {
     }
   };
 
-  if (!user) return <div className="p-10 text-center font-bold">Memuat Form...</div>;
+  if (!user) return <div className="p-10 text-center font-bold text-slate-500">Memuat Form Penilaian...</div>;
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-28 relative">
+    <main className="min-h-screen bg-slate-50 pb-28 relative font-sans text-slate-900">
       <ModalNotif isOpen={modal.isOpen} type={modal.type as any} title={modal.title} message={modal.message} onClose={() => setModal({ ...modal, isOpen: false })} />
 
       <header className="bg-emerald-700 text-white p-5 shadow-md sticky top-0 z-20 flex justify-between items-center rounded-b-3xl">
@@ -150,9 +155,9 @@ export default function FormPenilaianJuri() {
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 relative overflow-hidden">
           {isLocked && <div className="absolute top-0 left-0 w-full h-1.5 bg-amber-500"></div>}
           
-          <label className="block text-sm font-extrabold text-slate-700 mb-2 flex justify-between">
+          <label className="block text-sm font-extrabold text-slate-700 mb-2 flex justify-between items-center">
             1. Pilih Bank Sampah Sasaran:
-            {isLocked && <span className="text-amber-600 bg-amber-50 px-2 py-0.5 rounded text-[10px] uppercase">🔒 Dinilai</span>}
+            {isLocked && <span className="text-amber-700 bg-amber-100 border border-amber-200 px-3 py-1 rounded-md text-[10px] uppercase font-black tracking-widest">🔒 Terkunci</span>}
           </label>
           
           <select 
@@ -161,7 +166,6 @@ export default function FormPenilaianJuri() {
             className="w-full p-4 rounded-xl bg-slate-50 border border-slate-200 font-bold outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700"
           >
             <option value="">-- Ketuk untuk memilih --</option>
-            {/* 🔒 UBAH VALUE JADI ID AGAR COCOK DENGAN DATABASE */}
             {daftarPeserta.map((p) => <option key={p._id} value={p._id}>{p.namaInstansi}</option>)}
           </select>
 
@@ -178,7 +182,7 @@ export default function FormPenilaianJuri() {
 
         {/* ==================== FORM JURI DLH ==================== */}
         {user.role === "juri_dlh" && (
-          <div className={`bg-white p-6 rounded-3xl shadow-sm border border-emerald-100 transition-opacity ${isLocked ? 'opacity-60' : ''}`}>
+          <div className={`bg-white p-6 rounded-3xl shadow-sm border border-emerald-100 transition-opacity ${isLocked ? 'opacity-80' : ''}`}>
             <div className="mb-5 border-b border-slate-100 pb-3">
               <span className="text-xs font-black text-emerald-600 uppercase tracking-wider">Kategori I (40%)</span>
               <h2 className="text-lg font-extrabold text-slate-800">Pengelolaan Sampah</h2>
@@ -197,7 +201,7 @@ export default function FormPenilaianJuri() {
 
         {/* ==================== FORM JURI DKK ==================== */}
         {user.role === "juri_dkk" && (
-          <div className={`bg-white p-6 rounded-3xl shadow-sm border border-emerald-100 transition-opacity ${isLocked ? 'opacity-60' : ''}`}>
+          <div className={`bg-white p-6 rounded-3xl shadow-sm border border-emerald-100 transition-opacity ${isLocked ? 'opacity-80' : ''}`}>
             <div className="mb-5 border-b border-slate-100 pb-3">
               <span className="text-xs font-black text-emerald-600 uppercase tracking-wider">Kategori II (20%)</span>
               <h2 className="text-lg font-extrabold text-slate-800">Fasilitas & Infrastruktur</h2>
@@ -213,7 +217,7 @@ export default function FormPenilaianJuri() {
 
         {/* ==================== FORM JURI BSI ==================== */}
         {user.role === "juri_bsi" && (
-          <div className={`bg-white p-6 rounded-3xl shadow-sm border border-emerald-100 transition-opacity ${isLocked ? 'opacity-60' : ''}`}>
+          <div className={`bg-white p-6 rounded-3xl shadow-sm border border-emerald-100 transition-opacity ${isLocked ? 'opacity-80' : ''}`}>
             <div className="mb-5 border-b border-slate-100 pb-3">
               <span className="text-xs font-black text-emerald-600 uppercase tracking-wider">Kategori III (25%)</span>
               <h2 className="text-lg font-extrabold text-slate-800">Tata Kelola & Administrasi</h2>
@@ -231,7 +235,7 @@ export default function FormPenilaianJuri() {
 
         {/* ==================== FORM JURI PMD ==================== */}
         {user.role === "juri_pmd" && (
-          <div className={`transition-opacity ${isLocked ? 'opacity-60' : ''}`}>
+          <div className={`transition-opacity ${isLocked ? 'opacity-80' : ''}`}>
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-emerald-100">
               <div className="mb-5 border-b border-slate-100 pb-3">
                 <span className="text-xs font-black text-emerald-600 uppercase tracking-wider">Kategori IV (7.5%)</span>
@@ -247,6 +251,15 @@ export default function FormPenilaianJuri() {
               </div>
               <ItemSoal id="5.1" judul="Keterlibatan Kelurahan/Desa" skor={skor} onChange={handleInputClick} isLocked={isLocked} options={[{l:"Tidak Ada", r:"1-5", min:1, max:5}, {l:"Ada (Tanpa Dana)", r:"6-10", min:6, max:10}, {l:"Didanai Desa", r:"11-20", min:11, max:20}]} />
             </div>
+          </div>
+        )}
+
+        {isLocked && (
+          <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex gap-3 items-start shadow-sm mt-4">
+             <span className="text-amber-500 text-lg">🛡️</span>
+             <p className="text-xs text-amber-700 font-bold leading-relaxed">
+               Pemberitahuan: Anda sedang melihat arsip penilaian. Sistem telah mengunci data ini untuk menjaga keadilan kompetisi.
+             </p>
           </div>
         )}
 
@@ -277,11 +290,11 @@ export default function FormPenilaianJuri() {
           <button 
             onClick={handleSimpan} 
             disabled={loading || isLocked} 
-            className={`flex-1 font-black py-4 rounded-2xl shadow-xl transition-all text-sm ${
-              isLocked ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none" : "bg-slate-900 text-white hover:bg-black active:scale-95"
+            className={`flex-1 font-black py-4 rounded-2xl shadow-xl transition-all text-sm uppercase tracking-widest ${
+              isLocked ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none" : "bg-slate-900 text-white hover:bg-black active:scale-95"
             }`}
           >
-            {loading ? "Menyimpan..." : isLocked ? "🔒 TERKUNCI" : "Kirim Skor 🚀"}
+            {loading ? "Proses..." : isLocked ? "TERKUNCI" : "Kirim Skor"}
           </button>
         </div>
       </div>
@@ -289,7 +302,7 @@ export default function FormPenilaianJuri() {
   );
 }
 
-// 🔒 UPDATE KOMPONEN ItemSoal (TERIMA isLocked)
+// 🔒 KOMPONEN ITEM SOAL: MENERIMA isLocked & MENAMPILKAN SKOR
 function ItemSoal({ id, judul, options, skor, onChange, isLocked }: { id: string, judul: string, options: any[], skor: any, onChange: any, isLocked?: boolean }) {
   const activeIndex = options.findIndex(opt => skor[id] >= opt.min && skor[id] <= opt.max);
   return (
@@ -301,7 +314,7 @@ function ItemSoal({ id, judul, options, skor, onChange, isLocked }: { id: string
           return (
             <button 
               key={i} 
-              disabled={isLocked} // Matikan tombol
+              disabled={isLocked} // Matikan tombol jika terkunci
               onClick={() => onChange(id, opt.max)} 
               className={`p-4 rounded-2xl text-left border-2 transition-all flex flex-col justify-between min-h-[95px] ${
                 isLocked ? "cursor-not-allowed" : "active:scale-95"
@@ -318,7 +331,7 @@ function ItemSoal({ id, judul, options, skor, onChange, isLocked }: { id: string
         })}
       </div>
       {activeIndex !== -1 && (
-        <div className="mt-4 bg-emerald-50 border border-emerald-200 p-5 rounded-2xl flex flex-col gap-4 transition-all animate-fade-in shadow-inner">
+        <div className="mt-4 bg-emerald-50 border border-emerald-200 p-5 rounded-2xl flex flex-col gap-4 transition-all shadow-inner">
           <span className="text-sm font-extrabold text-emerald-800">Pilih Nilai Spesifik ({options[activeIndex].min} - {options[activeIndex].max}):</span>
           <div className="flex flex-wrap gap-2.5">
             {Array.from({ length: options[activeIndex].max - options[activeIndex].min + 1 }, (_, i) => options[activeIndex].min + i).map((val) => {
@@ -326,13 +339,13 @@ function ItemSoal({ id, judul, options, skor, onChange, isLocked }: { id: string
               return (
                 <button 
                   key={val} 
-                  disabled={isLocked} // Matikan tombol angka
+                  disabled={isLocked} // Matikan tombol angka jika terkunci
                   onClick={() => onChange(id, val)} 
                   className={`w-14 h-14 flex items-center justify-center rounded-xl text-base font-black transition-all ${
-                    isLocked ? "cursor-not-allowed" : "active:scale-90"
+                    isLocked ? "cursor-not-allowed opacity-90" : "active:scale-90"
                   } ${
                     isValSelected 
-                      ? "bg-emerald-600 text-white shadow-md border-2 border-emerald-700" 
+                      ? "bg-emerald-600 text-white shadow-md border-2 border-emerald-700 scale-105" 
                       : "bg-white text-emerald-700 border-2 border-emerald-200 hover:bg-emerald-100"
                   }`}
                 >
