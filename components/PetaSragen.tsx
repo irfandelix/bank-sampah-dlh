@@ -22,19 +22,27 @@ export default function PetaSragen({ dataKlasemen }: { dataKlasemen: any[] }) {
     return () => setMounted(false);
   }, []);
 
-  const styleWilayah = (feature: any) => {
-    const namaKec = feature.properties.kecamatan || ""; 
+const styleWilayah = (feature: any) => {
+    // 🔍 TIPS: Pastikan di GeoJSON-mu kolomnya memang 'kecamatan'. 
+    // Kalau nggak muncul, coba ganti jadi 'NAMOBJ' atau 'name'.
+    const namaKecPeta = feature.properties.kecamatan || feature.properties.NAMOBJ || feature.properties.name || ""; 
+    
+    // Cari data kecamatan di klasemen
     const dataKec = dataKlasemen.find((k) => 
-      k.kecamatan && k.kecamatan.toLowerCase() === namaKec.toLowerCase()
+      k.kecamatan && k.kecamatan.toString().toLowerCase().trim() === namaKecPeta.toString().toLowerCase().trim()
     );
+
     const skor = dataKec ? dataKec.skor : 0;
+
+    // debug sebentar (bisa dihapus kalau sudah jalan)
+    // if(skor > 0) console.log(`Match! ${namaKecPeta} Skor: ${skor}`);
 
     return {
       fillColor: skor >= 80 ? "#059669" : 
                  skor >= 50 ? "#10b981" : 
-                 skor > 0   ? "#f59e0b" : "#f8fafc",
-      color: "#475569", 
-      weight: 1.5,
+                 skor > 0   ? "#f59e0b" : "#334155", // Warna dasar mode gelap (abu tua)
+      color: "#1e293b", 
+      weight: 1,
       opacity: 1,
       fillOpacity: 0.7,
     };
@@ -87,7 +95,8 @@ return (
         <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
         
         <GeoJSON 
-          key={`geojson-${dataKlasemen.length}-${dataKlasemen[0]?.skor || 0}`}
+          // ✅ KUNCI SAKTI: Biar peta update setiap kali ada skor yang berubah
+          key={JSON.stringify(dataKlasemen)} 
           data={geoData} 
           style={styleWilayah} 
           onEachFeature={onEachFeature} 
