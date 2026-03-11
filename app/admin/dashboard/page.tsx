@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import ModalNotif from "@/components/ModalNotif";
 import TombolLogout from "@/components/TombolLogout";
+import * as XLSX from "xlsx";
 
 const PetaSragen = dynamic(() => import("@/components/PetaSragen"), { 
   ssr: false,
@@ -55,6 +56,50 @@ export default function AdminDashboard() {
         }
       }
     } catch (err) { console.error("Gagal refresh data"); } finally { setLoading(false); }
+  };
+
+  // 📥 FUNGSI EXPORT EXCEL
+  const exportToExcel = () => {
+    if (klasemen.length === 0) {
+      setModal({ isOpen: true, type: "error", title: "Data Kosong", message: "Belum ada data klasemen untuk diexport." });
+      return;
+    }
+
+    // 1. Siapkan datanya biar rapi pas masuk Excel
+    const dataExcel = klasemen.map((item, index) => ({
+      "Peringkat": index + 1,
+      "Nama Bank Sampah": item.namaInstansi,
+      "Kecamatan": item.kecamatan,
+      "ID Login": item.username,
+      "Nilai DLH (40%)": Number(item.skorDLH || 0),
+      "Nilai DKK (20%)": Number(item.skorDKK || 0),
+      "Nilai BSI (25%)": Number(item.skorBSI || 0),
+      "Nilai PMD (15%)": Number(item.skorPMD || 0),
+      "Total Skor": Number(item.skor || 0).toFixed(2),
+    }));
+
+    // 2. Bikin lembar kerjanya (Worksheet)
+    const worksheet = XLSX.utils.json_to_sheet(dataExcel);
+
+    // 3. Atur lebar kolom biar cantik nggak nyempil
+    worksheet["!cols"] = [
+      { wch: 10 },  // Peringkat
+      { wch: 35 },  // Nama Bank Sampah
+      { wch: 20 },  // Kecamatan
+      { wch: 20 },  // ID Login
+      { wch: 15 },  // Nilai DLH
+      { wch: 15 },  // Nilai DKK
+      { wch: 15 },  // Nilai BSI
+      { wch: 15 },  // Nilai PMD
+      { wch: 15 },  // Total Skor
+    ];
+
+    // 4. Bikin file Excel-nya (Workbook)
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Hasil Evaluasi");
+
+    // 5. Download otomatis!
+    XLSX.writeFile(workbook, "Laporan_Klasemen_Bank_Sampah_Sragen_2026.xlsx");
   };
 
   useEffect(() => {
@@ -217,6 +262,14 @@ export default function AdminDashboard() {
             >
                Kelola Peserta
             </Link>
+
+            <button 
+              onClick={exportToExcel} 
+              className="flex-1 lg:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 px-5 md:px-8 rounded-2xl transition-all active:scale-95 shadow-md uppercase text-[10px] md:text-xs tracking-widest flex items-center justify-center gap-2"
+            >
+               <span>📊</span> Export Excel
+            </button>
+
             <button 
               onClick={() => fetchDashboardData(true)} 
               className="flex-1 lg:flex-none bg-white hover:bg-slate-50 text-slate-700 font-black py-4 px-6 md:px-8 rounded-2xl transition-all uppercase text-[10px] md:text-xs tracking-widest border border-slate-200 shadow-sm"
