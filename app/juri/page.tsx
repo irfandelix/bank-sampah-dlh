@@ -14,6 +14,7 @@ export default function FormPenilaianJuri() {
   const [skor, setSkor] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [isLocked, setIsLocked] = useState(false); // 🔒 STATE GEMBOK
+  const [skorPaten, setSkorPaten] = useState(0); // 👈 TAMBAH INI BUAT NYIMPEN NILAI ASLI
   const [modal, setModal] = useState({ isOpen: false, type: "", title: "", message: "" });
 
   // 1. Ambil Data User & Daftar Peserta
@@ -43,6 +44,7 @@ export default function FormPenilaianJuri() {
 
         if (res.ok && data.isLocked) {
           setIsLocked(true);
+          setSkorPaten(data.nilaiLama); // 👈 TAMBAH INI
           
           // 🔥 MUNCULKAN KEMBALI TOMBOL YANG DULU DIPILIH DARI DATABASE
           if (data.detailLama) {
@@ -269,9 +271,9 @@ export default function FormPenilaianJuri() {
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-[0_-15px_30px_rgba(0,0,0,0.08)] z-20 flex justify-between items-center px-6 rounded-t-3xl">
         <div className="flex-1">
           <p className="text-[10px] font-bold text-slate-400 uppercase">Kontribusi Nilai</p>
-          {/* ✅ RAHASIA-NYA DI SINI: Angka akan selalu muncul, tidak ditutup gembok lagi */}
           <p className="text-3xl font-black text-emerald-600 leading-none mt-1">
-            {hitungSkorAkhir()} 
+            {/* 👇 RAHASIA NYA DI SINI: Kalau ngunci, pakai skorPaten. Kalau belum, hitung manual */}
+            {isLocked ? skorPaten : hitungSkorAkhir()} 
             <span className="text-sm text-slate-400 font-bold ml-1"> 
               / {user.role === "juri_dlh" ? "40" : user.role === "juri_dkk" ? "20" : user.role === "juri_bsi" ? "25" : "15"}
             </span>

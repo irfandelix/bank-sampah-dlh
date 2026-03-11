@@ -11,6 +11,10 @@ const userSchema = new mongoose.Schema({
   skorDKK: { type: Number, default: 0 }, // Untuk Indikator 2
   skorBSI: { type: Number, default: 0 }, // Untuk Indikator 3
   skorPMD: { type: Number, default: 0 }, // Untuk Indikator 4 & 5 gabungan
+  detail_juri_dlh: { type: Object, default: {} },
+  detail_juri_dkk: { type: Object, default: {} },
+  detail_juri_bsi: { type: Object, default: {} },
+  detail_juri_pmd: { type: Object, default: {} },
   skorTotal: { type: Number, default: 0 },
   skor: { type: Number, default: 0 }, // Dipakai untuk klasemen
 }, { timestamps: true });
