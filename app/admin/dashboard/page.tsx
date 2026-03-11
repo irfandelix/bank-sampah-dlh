@@ -75,7 +75,8 @@ export default function AdminDashboard() {
             { label: "Total Peserta", val: stats.totalPeserta, color: "text-white" },
             { label: "Selesai Dinilai", val: stats.sudahDinilai, color: "text-emerald-400" },
             { label: "Menunggu", val: stats.totalPeserta - stats.sudahDinilai, color: "text-amber-400" },
-            { label: "Skor Tertinggi", val: stats.tertinggi, color: "text-slate-300", small: true }
+            // ✅ FIX 1: Potong desimal berlebih di string Skor Tertinggi pakai Regex
+            { label: "Skor Tertinggi", val: typeof stats.tertinggi === 'string' ? stats.tertinggi.replace(/(\d+\.\d{2})\d+/, '$1') : stats.tertinggi, color: "text-slate-300", small: true }
           ].map((item, i) => (
             <div key={i} className="bg-[#1e293b] p-6 rounded-3xl border border-slate-800 shadow-xl">
               <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{item.label}</p>
@@ -135,12 +136,13 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                         <div className="text-right">
+                          {/* ✅ FIX 2: Paksa angka skor jadi cuma 2 digit di belakang koma */}
                           <p className={`text-xl font-black leading-none ${
                             index === 0 ? "text-amber-400" :
                             index === 1 ? "text-slate-300" :
                             index === 2 ? "text-orange-400" :
                             "text-emerald-400"
-                          }`}>{kec.skor}</p>
+                          }`}>{Number(kec.skor).toFixed(2)}</p>
                         </div>
                       </div>
                     </div>
@@ -151,7 +153,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* --- PANEL KENDALI DARK --- */}
+        {/* --- PANEL KENDALI & TABEL (Sama seperti sebelumnya) --- */}
         <div className="bg-gradient-to-r from-[#1e293b] to-[#0f172a] p-8 rounded-[2.5rem] border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl">
           <div className="flex items-center gap-6">
             <div className="w-16 h-16 bg-[#0f172a] rounded-2xl flex items-center justify-center text-3xl shadow-inner border border-slate-800">🛠️</div>
@@ -170,7 +172,6 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* --- TABEL DARK --- */}
         <div className="bg-[#1e293b] rounded-[2.5rem] border border-slate-800 overflow-hidden shadow-2xl">
           <div className="p-8 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center">
             <div>
