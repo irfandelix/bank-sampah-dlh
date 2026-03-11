@@ -5,31 +5,53 @@ import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [kataKunci, setKataKunci] = useState("");
-  const [error, setError] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Fungsi untuk mengecek kata kunci saat tombol "Masuk" ditekan
-  const handleLogin = (e: React.FormEvent) => {
+  // Fungsi untuk mengecek ke API Database saat tombol "Masuk" ditekan
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(false);
+    setError("");
     setLoading(true);
 
-    // Simulasi pengecekan database (nanti diganti dengan Auth.js / Passkey)
-    setTimeout(() => {
-      const sandi = kataKunci.toUpperCase(); // Ubah ke huruf besar semua agar tidak sensitif huruf kecil
+    try {
+      // Menghubungi "otak" API kita di backend
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
 
-      if (sandi === "ADMIN-DLH") {
-        router.push("/admin/dashboard"); // Arahkan ke Peta Admin
-      } else if (sandi === "JURI-LAPANGAN") {
-        router.push("/juri/nilai/contoh-id-peserta"); // Arahkan ke Tombol Juri
-      } else if (sandi === "BANK-SAMPAH") {
-        router.push("/peserta/form"); // Arahkan ke Form Upload Peserta
+      const data = await res.json();
+
+      if (res.ok) {
+        // 1. Simpan "KTP" user ke browser agar halaman Dashboard tahu siapa yang login
+        sessionStorage.setItem("user", JSON.stringify({
+          username: username,
+          role: data.role,
+          namaInstansi: data.namaInstansi || data.role.replace('_', ' ').toUpperCase()
+        }));
+
+        // 2. Arahkan ke rute yang benar sesuai Role (Identitas)
+        if (data.role === "admin") {
+          router.push("/admin/dashboard");
+        } else if (data.role.startsWith("juri_")) {
+          router.push("/juri/dashboard"); // Arahkan ke halaman Form Juri
+        } else if (data.role === "peserta") {
+          router.push("/peserta/dashboard"); // Arahkan ke halaman upload Bank Sampah
+        }
       } else {
-        setError(true); // Jika sandi salah
-        setLoading(false);
+        // Jika username/password salah
+        setError(data.error || "Gagal masuk. Periksa kembali data Anda.");
       }
-    }, 800); // Simulasi loading selama 0.8 detik biar terasa realistis
+    } catch (err) {
+      // Nah, ini dia pesan error kalau jaringan putus atau database gagal nyambung!
+      setError("Koneksi terputus. Tidak dapat terhubung ke server database.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -47,56 +69,57 @@ export default function LoginPage() {
           <p className="text-sm text-slate-500 mt-1">Lomba Bank Sampah Sragen 2026</p>
         </div>
 
-        {/* Form Input */}
-        <form onSubmit={handleLogin} className="space-y-6">
+        {/* Form Input (SEKARANG ADA USERNAME & PASSWORD) */}
+        <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label htmlFor="kata-kunci" className="block text-sm font-bold text-slate-700 mb-2">
-              Masukkan Kata Kunci Akses
-            </label>
+            <label className="block text-sm font-bold text-slate-700 mb-2">Username Akses</label>
             <input
               type="text"
-              id="kata-kunci"
-              value={kataKunci}
-              onChange={(e) => setKataKunci(e.target.value)}
-              placeholder="Contoh: ADMIN-DLH"
-              className={`w-full px-4 py-3 rounded-xl border bg-slate-50 text-slate-800 focus:outline-none focus:ring-2 transition-all ${
-                error 
-                  ? "border-red-300 focus:ring-red-200 focus:border-red-500" 
-                  : "border-slate-200 focus:ring-emerald-200 focus:border-emerald-500"
-              }`}
+              required
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Contoh: juri_dlh / bs_gemolong"
+              className="w-full px-4 py-3 rounded-xl border bg-slate-50 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500 transition-all"
               autoComplete="off"
             />
-            {/* Pesan Error */}
-            {error && (
-              <p className="text-red-500 text-xs font-medium mt-2 flex items-center gap-1">
-                ⚠️ Kata kunci tidak terdaftar. Silakan coba lagi.
-              </p>
-            )}
           </div>
+
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">Password Akses</label>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Masukkan password rahasia..."
+              className="w-full px-4 py-3 rounded-xl border bg-slate-50 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-500 transition-all"
+            />
+          </div>
+
+          {/* Pesan Error Muncul di Sini */}
+          {error && (
+            <div className="bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-bold border border-red-100 flex items-start gap-2">
+              <span>⚠️</span>
+              <p>{error}</p>
+            </div>
+          )}
 
           <button
             type="submit"
-            disabled={loading || kataKunci.trim() === ""}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl shadow-md active:scale-95 transition-all disabled:opacity-70 disabled:active:scale-100 flex justify-center items-center gap-2"
+            disabled={loading || !username || !password}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl shadow-md active:scale-95 transition-all disabled:opacity-70 disabled:active:scale-100 flex justify-center items-center gap-2 mt-4"
           >
-            {loading ? "Memeriksa..." : "Masuk Sistem"}
+            {loading ? "Menghubungkan ke Database..." : "Masuk Sistem 🚀"}
           </button>
         </form>
 
         {/* Info Bantuan Tambahan */}
         <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-          <p className="text-xs text-slate-400">
-            *Kata kunci diberikan oleh panitia DLH Kabupaten Sragen. Hubungi admin jika Anda lupa kata kunci.
+          <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400">
+            Dikelola oleh DLH Kabupaten Sragen
           </p>
         </div>
-        
       </div>
-
-      {/* Catatan Rahasia untuk Developer (Hanya Sementara) */}
-      <div className="mt-8 text-xs text-slate-400 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
-        <span className="font-bold text-slate-600">Cheat Code (Untuk Tes):</span> ADMIN-DLH | JURI-LAPANGAN | BANK-SAMPAH
-      </div>
-
     </main>
   );
 }
