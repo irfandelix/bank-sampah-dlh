@@ -56,21 +56,29 @@ const styleWilayah = (feature: any) => {
   };
 
   const onEachFeature = (feature: any, layer: any) => {
-    const namaKecPeta = feature.properties.kecamatan || "";
+    // 1. Ambil nama murni tanpa embel-embel
+    const namaKecPeta = feature.properties.kecamatan || feature.properties.name || "";
+    
+    // 2. Cari peringkat
     const peringkatIndex = dataKlasemen.findIndex((k) => 
       k.kecamatan && k.kecamatan.toString().toLowerCase().trim() === namaKecPeta.toLowerCase().trim()
     );
 
-    let labelStatus = `Kecamatan ${namaKecPeta}`;
-    if (peringkatIndex === 0) labelStatus = `🏆 Juara 1: ${namaKecPeta}`;
-    else if (peringkatIndex === 1) labelStatus = `🥈 Juara 2: ${namaKecPeta}`;
-    else if (peringkatIndex === 2) labelStatus = `🥉 Juara 3: ${namaKecPeta}`;
+    // 3. Susun Label (Tanpa kata "Kecamatan")
+    let labelStatus = namaKecPeta; // Default cuma nama: "SRAGEN", "TANON", dll.
+
+    if (peringkatIndex === 0) labelStatus = `🏆 JUARA 1: ${namaKecPeta}`;
+    else if (peringkatIndex === 1) labelStatus = `🥈 JUARA 2: ${namaKecPeta}`;
+    else if (peringkatIndex === 2) labelStatus = `🥉 JUARA 3: ${namaKecPeta}`;
 
     layer.bindTooltip(labelStatus, {
       permanent: true,
       direction: "center",
       className: `label-kecamatan ${peringkatIndex < 3 && peringkatIndex !== -1 ? 'label-juara' : ''}`,
     });
+
+    // Popup juga kita bersihkan biar nggak dobel-dobel
+    layer.bindPopup(`<b>${namaKecPeta}</b><br/>Skor: ${peringkatIndex !== -1 ? dataKlasemen[peringkatIndex].skor : 0}`);
   };
 
   if (!mounted || typeof window === "undefined") return null;
