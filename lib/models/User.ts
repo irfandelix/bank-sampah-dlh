@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true }, // Di dunia nyata password harus di-hash (enkripsi), tapi untuk versi awal ini kita buat teks biasa dulu agar mudah dipantau
   role: { type: String, required: true, enum: ['ADMIN', 'JURI', 'PESERTA'] },
   namaInstansi: { type: String, required: true },
-  kecamatan: { type: String, required: true }, // ✅ TAMBAHKAN INI
+  kecamatan: { type: String }, // ✅ TAMBAHKAN INI
   driveFolderId: { type: String, default: "" }, // Ini tempat menyimpan ID Laci Khusus Google Drive untuk masing-masing peserta
   skorDLH: { type: Number, default: 0 }, // Untuk Indikator 1
   skorDKK: { type: Number, default: 0 }, // Untuk Indikator 2
