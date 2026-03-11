@@ -2,30 +2,37 @@ import { NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import User from "@/lib/models/User";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     await connectMongoDB();
 
-    // 1. Ambil semua peserta, urutkan skor dari besar ke kecil (descending)
-    const klasemen = await User.find({ role: "peserta" })
-      .select("namaInstansi username skor kecamatan") // ✅ TAMBAHKAN 'kecamatan' DI SINI!
-      .sort({ skor: -1 });
+    // 🕵️‍♂️ DETEKTIF: Cari SEMUA data tanpa filter role
+    const semuaUser = await User.find({}).lean();
+    console.log("ISI DATABASE SAAT INI:", semuaUser);
 
-    // 2. Hitung statistik ringkas
-    const totalPeserta = klasemen.length;
-    const sudahDinilai = klasemen.filter(p => p.skor > 0).length;
-    const tertinggi = klasemen.length > 0 ? klasemen[0] : null;
+    // 1. Ambil Klasemen (Filter role peserta)
+    const klasemen = await User.find({ role: "peserta" })
+      .select("namaInstansi username skor kecamatan")
+      .sort({ skor: -1 })
+      .lean();
+
+    // 2. Hitung Statistik
+    const totalPeserta = await User.countDocuments({ role: "peserta" });
+    const sudahDinilai = await User.countDocuments({ role: "peserta", skor: { $gt: 0 } });
 
     return NextResponse.json({
-      klasemen,
+      debug_total_semua_user: semuaUser.length, // Tambahan buat ngecek
+      klasemen: klasemen || [],
       stats: {
-        totalPeserta,
-        sudahDinilai,
-        tertinggi: tertinggi ? `${tertinggi.skor} (${tertinggi.namaInstansi})` : "-"
+        totalPeserta: totalPeserta,
+        sudahDinilai: sudahDinilai,
+        tertinggi: klasemen.length > 0 ? `${klasemen[0].skor} (${klasemen[0].namaInstansi})` : "-"
       }
-    }, { status: 200 });
+    });
 
-  } catch (error) {
-    return NextResponse.json({ error: "Gagal mengambil data dashboard" }, { status: 500 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
