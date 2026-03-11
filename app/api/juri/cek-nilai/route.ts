@@ -3,25 +3,39 @@ import { connectMongoDB } from "@/lib/mongodb";
 import User from "@/lib/models/User";
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
-  const role = searchParams.get("role")?.toLowerCase(); // Paksa kecil di sini juga
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    const roleRaw = searchParams.get("role") || "";
 
-  await connectMongoDB();
-  const user = await User.findById(id).lean();
+    // 🕵️‍♂️ NORMALISASI: Paksa ke HURUF BESAR (JURI_DLH)
+    const role = roleRaw.toUpperCase();
 
-  if (!user) return NextResponse.json({ error: "Gak ketemu" }, { status: 404 });
+    await connectMongoDB();
+    const user = await User.findById(id).lean();
 
-  const mappingField: any = {
-    "juri_dlh": user.skorDLH || 0,
-    "juri_dkk": user.skorDKK || 0,
-    "juri_bsi": user.skorBSI || 0,
-    "juri_pmd": user.skorPMD || 0,
-  };
+    if (!user) return NextResponse.json({ error: "Peserta tidak ditemukan" }, { status: 404 });
 
-  return NextResponse.json({
-    namaInstansi: user.namaInstansi,
-    kecamatan: user.kecamatan,
-    nilaiLama: mappingField[role || ""] || 0
-  });
+    // Mapping field sesuai model di database
+    const mappingField: any = {
+      "JURI_DLH": user.skorDLH,
+      "JURI_DKK": user.skorDKK,
+      "JURI_BSI": user.skorBSI,
+      "JURI_PMD": user.skorPMD,
+    };
+
+    const nilaiLama = mappingField[role] || 0;
+
+    // LOG UNTUK DEBUG (Muncul di terminal VS Code/Vercel)
+    console.log(`DEBUG: ID ${id} | Role ${role} | Nilai Ditemukan: ${nilaiLama}`);
+
+    return NextResponse.json({
+      namaInstansi: user.namaInstansi,
+      kecamatan: user.kecamatan,
+      nilaiLama: Number(nilaiLama) // Pastikan dikirim sebagai angka murni
+    }, { status: 200 });
+
+  } catch (error) {
+    return NextResponse.json({ error: "Gagal cek data" }, { status: 500 });
+  }
 }
