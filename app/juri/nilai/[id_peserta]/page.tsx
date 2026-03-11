@@ -7,20 +7,19 @@ import ModalNotif from "@/components/ModalNotif";
 export default function HalamanPenilaian() {
   const params = useParams();
   const router = useRouter();
-  const idPeserta = params.id_peserta; // Mengambil ID dari URL
+  const idPeserta = params.id_peserta; 
 
   const [namaBankSampah, setNamaBankSampah] = useState("Memuat...");
   const [kecamatan, setKecamatan] = useState("");
   const [nilai, setNilai] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
-  const [sudahDinilai, setSudahDinilai] = useState(false);
+  const [isLocked, setIsLocked] = useState(false); // State pengunci
   const [modal, setModal] = useState({ isOpen: false, type: "", title: "", message: "" });
 
-  // 1. FUNGSI CEK DATA: Ambil info peserta & nilai lama kalau ada
+  // 1. FUNGSI CEK DATA: Ambil info & cek apakah sudah dikunci
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Ambil info juri dari storage
         const userJson = sessionStorage.getItem("user");
         if (!userJson) return router.push("/");
         const user = JSON.parse(userJson);
@@ -32,10 +31,9 @@ export default function HalamanPenilaian() {
           setNamaBankSampah(data.namaInstansi);
           setKecamatan(data.kecamatan);
           
-          // Kalau juri ini sudah pernah ngasih nilai, otomatis nyalakan tombolnya
           if (data.nilaiLama > 0) {
             setNilai(data.nilaiLama);
-            setSudahDinilai(true);
+            setIsLocked(true); // Kunci tampilan jika nilai sudah ada
           }
         }
       } catch (err) {
@@ -68,14 +66,16 @@ export default function HalamanPenilaian() {
       });
 
       if (res.ok) {
-        setSudahDinilai(true);
+        setIsLocked(true); // Langsung kunci setelah berhasil simpan
         setModal({
-          isOpen: true, type: "success",
-          title: sudahDinilai ? "Revisi Berhasil!" : "Berhasil Simpan!",
-          message: sudahDinilai 
-            ? `Nilai terbaru (${nilai} poin) sudah diperbarui di database.` 
-            : `Nilai ${nilai} poin berhasil masuk ke klasemen!`
+          isOpen: true, 
+          type: "success",
+          title: "Nilai Dikunci!",
+          message: `Nilai ${nilai} poin berhasil disimpan secara permanen dan tidak dapat diubah lagi.`
         });
+      } else {
+        const errData = await res.json();
+        setModal({ isOpen: true, type: "error", title: "Gagal", message: errData.error || "Gagal menyimpan." });
       }
     } catch (error) {
       setModal({ isOpen: true, type: "error", title: "Gagal", message: "Koneksi server bermasalah." });
@@ -103,9 +103,9 @@ export default function HalamanPenilaian() {
           <span className="px-2 py-1 bg-emerald-800/50 rounded-lg text-[10px] font-bold border border-emerald-600">
             📍 Kec. {kecamatan}
           </span>
-          {sudahDinilai && (
-            <span className="px-2 py-1 bg-white text-emerald-700 rounded-lg text-[10px] font-black shadow-sm">
-              ✅ TERDATA
+          {isLocked && (
+            <span className="px-2 py-1 bg-white text-emerald-700 rounded-lg text-[10px] font-black shadow-sm uppercase tracking-tighter">
+              🔒 Terkunci
             </span>
           )}
         </div>
@@ -120,19 +120,22 @@ export default function HalamanPenilaian() {
             <h2 className="text-slate-800 font-bold text-lg leading-tight">
               1. Bagaimana kualitas pengolahan sampah dan sarana prasarana di lokasi?
             </h2>
-            <p className="text-slate-400 text-xs mt-2 italic">* Pilih salah satu angka di bawah sebagai nilai akhir</p>
+            <p className="text-slate-400 text-[10px] mt-2 italic">
+              {isLocked ? "* Nilai sudah permanen" : "* Pilih salah satu angka di bawah sebagai nilai akhir"}
+            </p>
           </div>
 
           <div className="grid grid-cols-5 gap-2 pt-6 border-t border-slate-50">
             {[6, 7, 8, 9, 10].map((angka) => (
               <button
                 key={angka}
+                disabled={isLocked} // Matikan tombol angka jika sudah terkunci
                 onClick={() => setNilai(angka)}
                 className={`py-4 text-xl font-black rounded-2xl transition-all duration-300 ${
                   nilai === angka
                     ? "bg-emerald-600 text-white shadow-xl shadow-emerald-200 scale-110 ring-4 ring-emerald-50"
                     : "bg-slate-50 text-slate-300 border border-slate-100 hover:bg-slate-100"
-                }`}
+                } ${isLocked ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 {angka}
               </button>
@@ -142,13 +145,21 @@ export default function HalamanPenilaian() {
 
         <button 
           onClick={handleSimpan}
-          disabled={loading}
+          disabled={loading || isLocked || nilai === null}
           className={`w-full py-5 rounded-[1.5rem] font-black text-sm uppercase tracking-[0.1em] transition-all active:scale-95 shadow-lg ${
-            sudahDinilai ? "bg-amber-500 hover:bg-amber-600 shadow-amber-200" : "bg-slate-900 hover:bg-black shadow-slate-300"
+            isLocked ? "bg-slate-400 cursor-not-allowed" : "bg-slate-900 hover:bg-black shadow-slate-300"
           } text-white`}
         >
-          {loading ? "Sinkronisasi..." : sudahDinilai ? "Perbarui Penilaian 🔄" : "Simpan Nilai Sekarang →"}
+          {loading ? "Menghubungkan..." : isLocked ? "🔒 Nilai Sudah Dikunci" : "Kirim & Kunci Nilai →"}
         </button>
+
+        {isLocked && (
+          <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl">
+            <p className="text-[10px] text-amber-700 font-bold text-center leading-relaxed">
+               Pemberitahuan: Nilai yang sudah dikirim tidak dapat diubah kembali untuk menjaga integritas kompetisi.
+            </p>
+          </div>
+        )}
       </div>
     </main>
   );
