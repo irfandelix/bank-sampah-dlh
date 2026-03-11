@@ -6,36 +6,37 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
-    const roleRaw = searchParams.get("role") || "";
+    // Paksa huruf kecil biar aman
+    const role = searchParams.get("role")?.toLowerCase() || ""; 
 
-    // 🕵️‍♂️ NORMALISASI: Paksa ke HURUF BESAR (JURI_DLH)
-    const role = roleRaw.toUpperCase();
+    if (!id || !role) {
+      return NextResponse.json({ error: "Data tidak lengkap" }, { status: 400 });
+    }
 
     await connectMongoDB();
     const user = await User.findById(id).lean();
 
     if (!user) return NextResponse.json({ error: "Peserta tidak ditemukan" }, { status: 404 });
 
-    // Mapping field sesuai model di database
-    const mappingField: any = {
-      "JURI_DLH": user.skorDLH,
-      "JURI_DKK": user.skorDKK,
-      "JURI_BSI": user.skorBSI,
-      "JURI_PMD": user.skorPMD,
+    // Map role juri ke nama kolom di database kamu
+    const mappingField: Record<string, number> = {
+      "juri_dlh": user.skorDLH || 0,
+      "juri_dkk": user.skorDKK || 0,
+      "juri_bsi": user.skorBSI || 0,
+      "juri_pmd": user.skorPMD || 0,
     };
 
     const nilaiLama = mappingField[role] || 0;
-
-    // LOG UNTUK DEBUG (Muncul di terminal VS Code/Vercel)
-    console.log(`DEBUG: ID ${id} | Role ${role} | Nilai Ditemukan: ${nilaiLama}`);
-
+    
+    // Kirim data ke frontend
     return NextResponse.json({
       namaInstansi: user.namaInstansi,
       kecamatan: user.kecamatan,
-      nilaiLama: Number(nilaiLama) // Pastikan dikirim sebagai angka murni
+      nilaiLama: nilaiLama,
+      isLocked: nilaiLama > 0 // Kalau lebih dari 0, statusnya TERKUNCI = true
     }, { status: 200 });
 
   } catch (error) {
-    return NextResponse.json({ error: "Gagal cek data" }, { status: 500 });
+    return NextResponse.json({ error: "Gagal memuat data" }, { status: 500 });
   }
 }
