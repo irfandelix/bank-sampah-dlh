@@ -30,7 +30,9 @@ export async function GET() {
     // Hitung statistik untuk kotak-kotak di atas Dashboard
     const totalPeserta = klasemen.length;
     const sudahDinilai = klasemen.filter((k) => k.skor > 0).length;
-    const tertinggi = klasemen.length > 0 && klasemen[0].skor > 0 ? klasemen[0].skor.toFixed(2) : "-";
+    const tertinggi = klasemen.length > 0 && klasemen[0].skor > 0 
+      ? { skor: klasemen[0].skor.toFixed(2), nama: klasemen[0].namaInstansi } 
+      : { skor: "-", nama: "Belum Ada Data" };
 
     return NextResponse.json({
       klasemen,

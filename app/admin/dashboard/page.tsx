@@ -11,9 +11,20 @@ const PetaSragen = dynamic(() => import("@/components/PetaSragen"), {
   loading: () => <div className="flex items-center justify-center h-full text-slate-400 font-bold uppercase tracking-tighter text-xs">Memuat Peta...</div>
 });
 
+// 🔒 1. DEFINISI TYPE BIAR TYPESCRIPT GAK REWEL
+interface StatsType {
+  totalPeserta: number;
+  sudahDinilai: number;
+  tertinggi: string | { skor: string; nama: string };
+}
+
 export default function AdminDashboard() {
   const [klasemen, setKlasemen] = useState<any[]>([]);
-  const [stats, setStats] = useState({ totalPeserta: 0, sudahDinilai: 0, tertinggi: "-" });
+  const [stats, setStats] = useState<StatsType>({ 
+    totalPeserta: 0, 
+    sudahDinilai: 0, 
+    tertinggi: "-" 
+  });
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState({ isOpen: false, type: "", title: "", message: "" });
   
@@ -76,19 +87,39 @@ export default function AdminDashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8 space-y-6">
         
-        {/* --- STATS CARDS LIGHT --- */}
+        {/* --- STATS CARDS LIGHT (TYPE-SAFE) --- */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: "Total Peserta", val: stats.totalPeserta, color: "text-slate-800", bg: "bg-white" },
-            { label: "Selesai Dinilai", val: stats.sudahDinilai, color: "text-emerald-600", bg: "bg-emerald-50/50" },
-            { label: "Menunggu", val: stats.totalPeserta - stats.sudahDinilai, color: "text-amber-600", bg: "bg-amber-50/50" },
-            { label: "Skor Tertinggi", val: typeof stats.tertinggi === 'string' ? stats.tertinggi.replace(/(\d+\.\d{2})\d+/, '$1') : stats.tertinggi, color: "text-slate-600", bg: "bg-white", small: true }
-          ].map((item, i) => (
-            <div key={i} className={`${item.bg} p-6 rounded-3xl border border-slate-200 shadow-sm transition-all hover:shadow-md`}>
-              <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{item.label}</p>
-              <p className={`${item.small ? 'text-lg' : 'text-4xl'} font-black mt-2 ${item.color} leading-tight`}>{item.val}</p>
-            </div>
-          ))}
+          {(() => {
+            const isObj = typeof stats.tertinggi === 'object' && stats.tertinggi !== null;
+            const valTertinggi = isObj ? (stats.tertinggi as any).skor : stats.tertinggi;
+            const namaTertinggi = isObj ? (stats.tertinggi as any).nama : "";
+
+            const cards = [
+              { label: "Total Peserta", val: stats.totalPeserta, sub: "Entitas Terdaftar", color: "text-slate-800", bg: "bg-white" },
+              { label: "Selesai Dinilai", val: stats.sudahDinilai, sub: "Verifikasi Juri", color: "text-emerald-600", bg: "bg-emerald-50/50" },
+              { label: "Menunggu", val: stats.totalPeserta - stats.sudahDinilai, sub: "Antrean Penilaian", color: "text-amber-600", bg: "bg-amber-50/50" },
+              { label: "Skor Tertinggi", val: valTertinggi, nama: namaTertinggi, color: "text-slate-900", bg: "bg-white" }
+            ];
+
+            return cards.map((item, i) => (
+              <div key={i} className={`${item.bg} p-6 rounded-3xl border border-slate-200 shadow-sm transition-all hover:shadow-md flex flex-col justify-between h-full`}>
+                <div>
+                  <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{item.label}</p>
+                  <p className={`text-4xl font-black mt-2 ${item.color} leading-tight`}>{item.val}</p>
+                </div>
+                
+                {item.nama ? (
+                  <p className="text-[10px] font-extrabold text-emerald-600 mt-3 uppercase tracking-tighter line-clamp-1 border-t border-slate-100 pt-3">
+                    🏆 {item.nama}
+                  </p>
+                ) : (
+                  <p className="text-[9px] font-bold text-slate-400 mt-3 uppercase tracking-tight">
+                    {item.sub}
+                  </p>
+                )}
+              </div>
+            ));
+          })()}
         </div>
 
         {/* --- PETA & KLASEMEN LIGHT --- */}
@@ -116,7 +147,6 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 klasemen.map((kec, index) => {
-                  const isTop3 = index < 3;
                   const isHighlight = changedIds.includes(kec.username);
                   return (
                     <div key={kec.username} className={`p-4 rounded-2xl border transition-all duration-700 ${
@@ -153,7 +183,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* --- PANEL KENDALI LIGHT --- */}
+        {/* --- PANEL KENDALI --- */}
         <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-6">
             <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl border border-slate-200 shadow-inner">🛠️</div>
@@ -222,8 +252,6 @@ export default function AdminDashboard() {
                          <p className="font-black text-slate-800 group-hover:text-emerald-600 transition-colors uppercase tracking-tight">{peserta.namaInstansi}</p>
                          <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">KEC. {peserta.kecamatan} • ID: <span className="text-slate-500">{peserta.username}</span></p>
                       </td>
-                      
-                      {/* KOLOM SKOR JURI (TERANG) */}
                       <td className="py-4 px-4 text-center">
                         {sDlh > 0 ? <span className="bg-slate-50 px-3 py-1 rounded text-emerald-700 font-black text-xs border border-slate-200">{sDlh}</span> : <span className="text-slate-300 font-bold">-</span>}
                       </td>
@@ -236,17 +264,12 @@ export default function AdminDashboard() {
                       <td className="py-4 px-4 text-center">
                         {sPmd > 0 ? <span className="bg-slate-50 px-3 py-1 rounded text-emerald-700 font-black text-xs border border-slate-200">{sPmd}</span> : <span className="text-slate-300 font-bold">-</span>}
                       </td>
-
-                      {/* KOLOM TOTAL */}
                       <td className="py-4 px-6 text-center">
                          <span className={`text-lg font-black ${totalSkor > 0 ? 'text-amber-500' : 'text-slate-400'}`}>
                            {totalSkor > 0 ? totalSkor.toFixed(1) : "0.0"}
                          </span>
                       </td>
-
-                      <td className="py-4 px-8 text-right">
-                        {statusUi}
-                      </td>
+                      <td className="py-4 px-8 text-right">{statusUi}</td>
                     </tr>
                   );
                 })}
