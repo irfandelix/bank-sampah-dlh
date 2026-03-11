@@ -1,115 +1,154 @@
 "use client";
 
-import { useState } from "react";
-import ModalNotif from "@/components/ModalNotif"; // Memanggil Modal Global
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import ModalNotif from "@/components/ModalNotif";
 
-export default function FormPenilaianJuri() {
-  // State untuk menyimpan nilai yang di-tap oleh juri
+export default function HalamanPenilaian() {
+  const params = useParams();
+  const router = useRouter();
+  const idPeserta = params.id_peserta; // Mengambil ID dari URL
+
+  const [namaBankSampah, setNamaBankSampah] = useState("Memuat...");
+  const [kecamatan, setKecamatan] = useState("");
   const [nilai, setNilai] = useState<number | null>(null);
-  
-  // State untuk mengontrol Modal
+  const [loading, setLoading] = useState(false);
+  const [sudahDinilai, setSudahDinilai] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, type: "", title: "", message: "" });
 
-  const handleSimpan = () => {
-    // Validasi: Cegah simpan jika belum ada nilai yang dipilih
+  // 1. FUNGSI CEK DATA: Ambil info peserta & nilai lama kalau ada
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Ambil info juri dari storage
+        const userJson = sessionStorage.getItem("user");
+        if (!userJson) return router.push("/");
+        const user = JSON.parse(userJson);
+
+        const res = await fetch(`/api/juri/cek-nilai?id=${idPeserta}&role=${user.role}`);
+        const data = await res.json();
+
+        if (res.ok) {
+          setNamaBankSampah(data.namaInstansi);
+          setKecamatan(data.kecamatan);
+          
+          // Kalau juri ini sudah pernah ngasih nilai, otomatis nyalakan tombolnya
+          if (data.nilaiLama > 0) {
+            setNilai(data.nilaiLama);
+            setSudahDinilai(true);
+          }
+        }
+      } catch (err) {
+        console.error("Gagal sinkronisasi data");
+      }
+    };
+    fetchData();
+  }, [idPeserta, router]);
+
+  const handleSimpan = async () => {
     if (nilai === null) {
       setModal({
-        isOpen: true,
-        type: "error",
-        title: "Nilai Belum Diisi!",
-        message: "Mohon pilih angka penilaian (6-10) terlebih dahulu sebelum melanjutkan ke pertanyaan berikutnya.",
+        isOpen: true, type: "error", title: "Nilai Kosong",
+        message: "Pilih angka (6-10) dulu ya sebelum simpan."
       });
       return;
     }
 
-    // Simulasi sukses menyimpan
-    setModal({
-      isOpen: true,
-      type: "success",
-      title: "Tersimpan!",
-      message: `Nilai ${nilai} poin untuk kategori "Fasilitas & Infrastruktur" berhasil diamankan ke sistem.`,
-    });
-  };
+    setLoading(true);
+    try {
+      const user = JSON.parse(sessionStorage.getItem("user") || "{}");
+      const res = await fetch("/api/juri/simpan-nilai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idPeserta: idPeserta,
+          skorBaru: nilai,
+          juriRole: user.role
+        }),
+      });
 
-  const tutupModal = () => setModal({ ...modal, isOpen: false });
+      if (res.ok) {
+        setSudahDinilai(true);
+        setModal({
+          isOpen: true, type: "success",
+          title: sudahDinilai ? "Revisi Berhasil!" : "Berhasil Simpan!",
+          message: sudahDinilai 
+            ? `Nilai terbaru (${nilai} poin) sudah diperbarui di database.` 
+            : `Nilai ${nilai} poin berhasil masuk ke klasemen!`
+        });
+      }
+    } catch (error) {
+      setModal({ isOpen: true, type: "error", title: "Gagal", message: "Koneksi server bermasalah." });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-slate-50 pb-20 relative">
-      
-      {/* --- MODAL POP-UP GLOBAL --- */}
       <ModalNotif 
         isOpen={modal.isOpen} 
-        type={modal.type as "success" | "error" | ""} 
-        title={modal.title}
+        type={modal.type as any} 
+        title={modal.title} 
         message={modal.message} 
-        onClose={tutupModal} 
+        onClose={() => setModal({ ...modal, isOpen: false })} 
       />
 
-      {/* Header Mobile (Tetap menempel di atas saat di-scroll) */}
-      <header className="bg-emerald-700 text-white p-4 shadow-md sticky top-0 z-10">
-        <p className="text-sm text-emerald-100">Penilaian Lapangan</p>
-        <h1 className="text-xl font-bold">Bank Sampah Maju Jaya</h1>
-        <div className="mt-2 inline-block px-2 py-1 bg-emerald-800/50 rounded-md text-xs font-medium border border-emerald-600/50">
-          📍 Kec. Gemolong
+      <header className="bg-emerald-700 text-white p-5 shadow-lg sticky top-0 z-10 rounded-b-[2rem]">
+        <button onClick={() => router.back()} className="text-emerald-200 text-xs mb-2 flex items-center gap-1">
+          ← Kembali ke Daftar
+        </button>
+        <h1 className="text-xl font-black tracking-tight">{namaBankSampah}</h1>
+        <div className="flex items-center gap-2 mt-2">
+          <span className="px-2 py-1 bg-emerald-800/50 rounded-lg text-[10px] font-bold border border-emerald-600">
+            📍 Kec. {kecamatan}
+          </span>
+          {sudahDinilai && (
+            <span className="px-2 py-1 bg-white text-emerald-700 rounded-lg text-[10px] font-black shadow-sm">
+              ✅ TERDATA
+            </span>
+          )}
         </div>
       </header>
 
-      {/* Area Konten (Diberi max-width agar tetap rapi kalau terpaksa dibuka di tablet) */}
-      <div className="p-4 space-y-6 max-w-md mx-auto mt-2">
-        
-        {/* Card Pertanyaan 1 */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-          <div className="mb-4">
-            <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-md mb-3 inline-block">
-              Fasilitas & Infrastruktur
+      <div className="p-4 max-w-md mx-auto space-y-6 mt-4">
+        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200">
+          <div className="mb-6">
+            <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full uppercase tracking-widest border border-emerald-100 mb-3 inline-block">
+              Indikator Lapangan
             </span>
-            <h2 className="text-slate-800 font-semibold leading-snug">
-              1. Bagaimana kondisi ruang pelayanan nasabah / penimbangan di lokasi?
+            <h2 className="text-slate-800 font-bold text-lg leading-tight">
+              1. Bagaimana kualitas pengolahan sampah dan sarana prasarana di lokasi?
             </h2>
+            <p className="text-slate-400 text-xs mt-2 italic">* Pilih salah satu angka di bawah sebagai nilai akhir</p>
           </div>
 
-          {/* Opsi Observasi (Radio Button Besar) */}
-          <div className="space-y-3 mb-6">
-            <label className="flex items-start gap-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 active:bg-slate-100 transition-colors">
-              <input type="radio" name="q1" className="mt-1 w-5 h-5 text-emerald-600 border-slate-300 focus:ring-emerald-600" />
-              <span className="text-sm text-slate-700 font-medium">a. Bangunan permanen milik sendiri / difasilitasi desa</span>
-            </label>
-            <label className="flex items-start gap-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 active:bg-slate-100 transition-colors">
-              <input type="radio" name="q1" className="mt-1 w-5 h-5 text-emerald-600 border-slate-300 focus:ring-emerald-600" />
-              <span className="text-sm text-slate-700 font-medium">b. Menumpang di fasilitas umum (Balai Desa/Posyandu)</span>
-            </label>
-          </div>
-
-          {/* Deretan Tombol Angka (Fitur Zero-Typing) */}
-          <div className="pt-4 border-t border-slate-100">
-            <p className="text-xs text-slate-500 mb-3 font-medium">Beri Nilai Akhir (Tap angka):</p>
-            <div className="flex gap-2 justify-between">
-              {[6, 7, 8, 9, 10].map((angka) => (
-                <button
-                  key={angka}
-                  onClick={() => setNilai(angka)}
-                  className={`flex-1 py-3 text-lg font-bold rounded-xl transition-all duration-200 ${
-                    nilai === angka
-                      ? "bg-emerald-600 text-white shadow-md scale-105 ring-2 ring-emerald-200" // Desain saat tombol aktif ditekan
-                      : "bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100" // Desain normal
-                  }`}
-                >
-                  {angka}
-                </button>
-              ))}
-            </div>
+          <div className="grid grid-cols-5 gap-2 pt-6 border-t border-slate-50">
+            {[6, 7, 8, 9, 10].map((angka) => (
+              <button
+                key={angka}
+                onClick={() => setNilai(angka)}
+                className={`py-4 text-xl font-black rounded-2xl transition-all duration-300 ${
+                  nilai === angka
+                    ? "bg-emerald-600 text-white shadow-xl shadow-emerald-200 scale-110 ring-4 ring-emerald-50"
+                    : "bg-slate-50 text-slate-300 border border-slate-100 hover:bg-slate-100"
+                }`}
+              >
+                {angka}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Tombol Simpan (Sekarang pakai event onClick) */}
         <button 
           onClick={handleSimpan}
-          className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-4 rounded-xl shadow-md active:scale-95 transition-all flex justify-center items-center gap-2"
+          disabled={loading}
+          className={`w-full py-5 rounded-[1.5rem] font-black text-sm uppercase tracking-[0.1em] transition-all active:scale-95 shadow-lg ${
+            sudahDinilai ? "bg-amber-500 hover:bg-amber-600 shadow-amber-200" : "bg-slate-900 hover:bg-black shadow-slate-300"
+          } text-white`}
         >
-          Simpan & Lanjut 
-          <span className="text-xl">→</span>
+          {loading ? "Sinkronisasi..." : sudahDinilai ? "Perbarui Penilaian 🔄" : "Simpan Nilai Sekarang →"}
         </button>
-
       </div>
     </main>
   );
