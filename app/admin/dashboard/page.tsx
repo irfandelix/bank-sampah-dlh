@@ -64,31 +64,32 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-16 pt-24 relative">
+    <main className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-16 pt-[100px] relative">
       <ModalNotif isOpen={modal.isOpen} type={modal.type as any} title={modal.title} message={modal.message} onClose={() => setModal({ ...modal, isOpen: false })} />
 
-      {/* --- HEADER FIXED & ANTI-PENYOK --- */}
-      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-4 flex justify-between items-center fixed top-0 left-0 right-0 w-full z-[50] shadow-sm">
+      {/* --- HEADER BAJA ANTI-PENYOK --- */}
+      {/* ✅ Kita paksa h-[80px] dan z-[9999] biar ukurannya terkunci mutlak */}
+      <header className="bg-white border-b border-slate-200 px-4 sm:px-8 h-[80px] flex justify-between items-center fixed top-0 left-0 w-full z-[9999] shadow-sm box-border">
         
         {/* Bagian Kiri (Teks) */}
-        <div className="flex-1 min-w-0 mr-4">
-          <h1 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight truncate">
+        <div className="flex flex-col justify-center">
+          <h1 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight leading-none">
             Command Center <span className="text-emerald-600">DLH</span>
           </h1>
-          <p className="text-[8px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1 truncate">
+          <p className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1.5 leading-none">
             Monitoring Bank Sampah 2026
           </p>
         </div>
 
         {/* Bagian Kanan (Tombol) */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           <TombolLogout />
-          <div className="flex items-center gap-3">
-            <div className="text-right hidden md:block border-l border-slate-200 pl-4 ml-1">
+          <div className="flex items-center gap-3 border-l border-slate-200 pl-4 ml-1">
+            <div className="text-right hidden sm:block">
               <p className="text-sm font-black text-slate-800 leading-none">Admin Utama</p>
-              <p className="text-[10px] font-bold text-emerald-600 uppercase mt-1 tracking-wider">Sragen Regency</p>
+              <p className="text-[10px] font-bold text-emerald-600 uppercase mt-1 tracking-wider leading-none">Sragen Regency</p>
             </div>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center font-black border border-emerald-200 text-sm">
+            <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center font-black border border-emerald-200 text-sm shrink-0">
               DLH
             </div>
           </div>
