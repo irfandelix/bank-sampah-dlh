@@ -64,13 +64,13 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-16 relative">
+    <main className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-16 pt-24 relative">
       <ModalNotif isOpen={modal.isOpen} type={modal.type as any} title={modal.title} message={modal.message} onClose={() => setModal({ ...modal, isOpen: false })} />
 
-{/* --- HEADER ANTI-PENYOK --- */}
-      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-4 flex justify-between items-center sticky top-0 z-[50] shadow-sm">
+      {/* --- HEADER FIXED & ANTI-PENYOK --- */}
+      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-4 flex justify-between items-center fixed top-0 left-0 right-0 w-full z-[50] shadow-sm">
         
-        {/* 1. Bagian Kiri (Teks) - Dikasih flex-1 dan min-w-0 biar nggak kegencet */}
+        {/* Bagian Kiri (Teks) */}
         <div className="flex-1 min-w-0 mr-4">
           <h1 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight truncate">
             Command Center <span className="text-emerald-600">DLH</span>
@@ -80,7 +80,7 @@ export default function AdminDashboard() {
           </p>
         </div>
 
-        {/* 2. Bagian Kanan (Tombol) - Dikasih shrink-0 biar ukurannya nggak mengecil */}
+        {/* Bagian Kanan (Tombol) */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <TombolLogout />
           <div className="flex items-center gap-3">
@@ -98,7 +98,7 @@ export default function AdminDashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8 space-y-6">
         
-        {/* --- STATS CARDS LIGHT (TYPE-SAFE) --- */}
+        {/* --- STATS CARDS LIGHT --- */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {(() => {
             const isObj = typeof stats.tertinggi === 'object' && stats.tertinggi !== null;
@@ -194,7 +194,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-{/* --- PANEL KENDALI LIGHT (SUDAH DIPERBAIKI) --- */}
+        {/* --- PANEL KENDALI LIGHT --- */}
         <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 shadow-sm overflow-hidden">
           
           {/* Bagian Kiri: Icon & Tulisan */}
