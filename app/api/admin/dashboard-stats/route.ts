@@ -2,40 +2,43 @@ import { NextResponse } from "next/server";
 import { connectMongoDB } from "@/lib/mongodb";
 import User from "@/lib/models/User";
 
+// Matikan cache biar data yang ditarik selalu fresh real-time
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
     await connectMongoDB();
+    
+    // Ambil semua data akun yang role-nya "PESERTA"
+    const daftarPeserta = await User.find({ role: { $regex: /peserta/i } }).lean();
 
-    // 🕵️‍♂️ DETEKTIF: Cari SEMUA data tanpa filter role
-    const semuaUser = await User.find({}).lean();
-    console.log("ISI DATABASE SAAT INI:", semuaUser);
+    // Petakan dan siapkan datanya untuk dikirim ke Dashboard
+    const klasemen = daftarPeserta
+      .map((p: any) => ({
+        username: p.username,
+        namaInstansi: p.namaInstansi,
+        kecamatan: p.kecamatan,
+        skor: p.skor || 0,
+        // 🔥 INI RAHASIANYA: Pastikan nilai juri ini ikut dikirim ke depan!
+        skorDLH: p.skorDLH || 0,
+        skorDKK: p.skorDKK || 0,
+        skorBSI: p.skorBSI || 0,
+        skorPMD: p.skorPMD || 0,
+      }))
+      .sort((a, b) => b.skor - a.skor); // Urutkan dari skor tertinggi ke terendah
 
-// 1. Ambil Klasemen (Gunakan Regex agar "PESERTA" atau "peserta" dua-duanya ketemu)
-    const klasemen = await User.find({ role: { $regex: /^peserta$/i } })
-      .select("namaInstansi username skor kecamatan")
-      .sort({ skor: -1 })
-      .lean();
-
-    // 2. Hitung Statistik (Sama, pakai Regex 'i' untuk case-insensitive)
-    const totalPeserta = await User.countDocuments({ role: { $regex: /^peserta$/i } });
-    const sudahDinilai = await User.countDocuments({ 
-      role: { $regex: /^peserta$/i }, 
-      skor: { $gt: 0 } 
-    });
+    // Hitung statistik untuk kotak-kotak di atas Dashboard
+    const totalPeserta = klasemen.length;
+    const sudahDinilai = klasemen.filter((k) => k.skor > 0).length;
+    const tertinggi = klasemen.length > 0 && klasemen[0].skor > 0 ? klasemen[0].skor.toFixed(2) : "-";
 
     return NextResponse.json({
-      debug_total_semua_user: semuaUser.length, // Tambahan buat ngecek
-      klasemen: klasemen || [],
-      stats: {
-        totalPeserta: totalPeserta,
-        sudahDinilai: sudahDinilai,
-        tertinggi: klasemen.length > 0 ? `${klasemen[0].skor} (${klasemen[0].namaInstansi})` : "-"
-      }
-    });
+      klasemen,
+      stats: { totalPeserta, sudahDinilai, tertinggi }
+    }, { status: 200 });
 
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error("Dashboard Stats Error:", error);
+    return NextResponse.json({ error: "Gagal menarik data klasemen" }, { status: 500 });
   }
 }
