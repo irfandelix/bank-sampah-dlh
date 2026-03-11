@@ -5,49 +5,51 @@ import User from "@/lib/models/User";
 export async function POST(req: Request) {
   try {
     const { idPeserta, skorBaru, juriRole } = await req.json();
-
     await connectMongoDB();
-    const user = await User.findById(idPeserta);
 
+    const user = await User.findById(idPeserta);
     if (!user) return NextResponse.json({ error: "Peserta tidak ditemukan" }, { status: 404 });
 
-    // 1. Tentukan field juri
+    // Paksa role jadi huruf kecil agar cocok dengan mapping
+    const roleKey = juriRole.toLowerCase();
+
     const mappingField: any = {
       "juri_dlh": "skorDLH",
       "juri_dkk": "skorDKK",
       "juri_bsi": "skorBSI",
       "juri_pmd": "skorPMD",
     };
-    const targetField = mappingField[juriRole];
 
-    // 2. PROTEKSI: Jika nilai sudah ada (di atas 0), TOLAK PERUBAHAN
-    if (user[targetField] > 0) {
+    const targetField = mappingField[roleKey];
+    if (!targetField) return NextResponse.json({ error: "Role juri tidak valid" }, { status: 400 });
+
+    // 🔒 CEK APAKAH SUDAH ADA NILAI (LOCKING)
+    // Kita cek apakah field tersebut sudah ada isinya dan lebih dari 0
+    if (user[targetField] && user[targetField] > 0) {
       return NextResponse.json(
-        { error: "Akses Ditolak! Nilai sudah dikunci oleh sistem." }, 
+        { error: "NILAI TERKUNCI! Anda sudah mengirim nilai sebelumnya." }, 
         { status: 403 }
       );
     }
 
-    // 3. Jika belum ada, lakukan Update
+    // Jika belum ada, baru update
     const userUpdate = await User.findByIdAndUpdate(
       idPeserta,
       { [targetField]: Number(skorBaru) },
       { new: true }
     );
 
-    // 4. Hitung Total Akhir secara otomatis
+    // Hitung ulang total
     const totalBaru = 
       (userUpdate.skorDLH || 0) + 
       (userUpdate.skorDKK || 0) + 
       (userUpdate.skorBSI || 0) + 
       (userUpdate.skorPMD || 0);
 
-    // 5. Simpan ke Klasemen
     await User.findByIdAndUpdate(idPeserta, { skor: totalBaru, skorTotal: totalBaru });
 
-    return NextResponse.json({ message: "Nilai berhasil dikunci!" }, { status: 200 });
-
+    return NextResponse.json({ message: "Berhasil dikunci!" });
   } catch (error) {
-    return NextResponse.json({ error: "Gagal menyimpan" }, { status: 500 });
+    return NextResponse.json({ error: "Gagal simpan" }, { status: 500 });
   }
 }
