@@ -46,9 +46,9 @@ export default function LoginPage() {
         if (data.role === "admin") {
           router.push("/admin/dashboard");
         } else if (data.role.startsWith("juri_")) {
-          router.push("/juri/dashboard");
+          router.push("/juri"); // ✅ Langsung tembus ke form penilaian Juri!
         } else if (data.role === "peserta") {
-          router.push("/peserta/dashboard");
+          router.push("/peserta"); // ✅ Langsung tembus ke halaman Peserta!
         }
       } else {
         setPesan({ isOpen: true, type: "error", text: data.error || "Gagal masuk. Periksa kembali data Anda." });
