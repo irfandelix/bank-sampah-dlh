@@ -7,8 +7,8 @@ export async function GET() {
     await connectMongoDB();
 
     // 1. Ambil semua peserta, urutkan skor dari besar ke kecil (descending)
-    const klasemen = await User.find({ role: "PESERTA" })
-      .select("namaInstansi skor username")
+    const klasemen = await User.find({ role: "peserta" })
+      .select("namaInstansi username skor kecamatan") // ✅ TAMBAHKAN 'kecamatan' DI SINI!
       .sort({ skor: -1 });
 
     // 2. Hitung statistik ringkas
