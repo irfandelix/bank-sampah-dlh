@@ -126,47 +126,46 @@ export default function FormUploadPeserta() {
   };
 
   const handleSubmit = async () => {
+    // Gabungkan file yang baru dipilih + yang sudah ada di Drive untuk validasi kelengkapan
     if (totalTerpenuhi < totalSyarat) {
-      setModal({ isOpen: true, type: "error", title: "Berkas Belum Lengkap!", message: `Mohon lengkapi seluruh ${totalSyarat} berkas wajib.` });
+      setModal({ isOpen: true, type: "error", title: "Belum Lengkap", message: `Wajib ${totalSyarat} berkas. Anda baru ${totalTerpenuhi}.` });
       return;
     }
 
     setLoading(true);
     let prosesKe = 0;
-    const totalUpload = Object.keys(files).length;
 
     try {
+      // Hanya upload file yang ADA di state 'files' (file baru yang dipilih)
       for (const [idBerkas, fileObj] of Object.entries(files)) {
         prosesKe++;
         setUploadIndex(prosesKe);
 
         const formData = new FormData();
         formData.append("file", fileObj);
-        formData.append("namaFolder", idBerkas);
+        formData.append("namaFolder", idBerkas); // Contoh: "Kat. I No. 1"
+        formData.append("folderId", user.driveFolderId); // ID folder peserta dari MongoDB
         formData.append("namaPeserta", user.namaInstansi || user.username);
-        formData.append("folderId", user.driveFolderId); // ID folder utama peserta
 
         const res = await fetch("/api/peserta/upload-gdrive", {
           method: "POST",
           body: formData,
         });
 
-        if (!res.ok) throw new Error(`Gagal upload ${idBerkas}`);
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Gagal upload salah satu berkas.");
+        }
       }
 
-      setModal({ 
-        isOpen: true, 
-        type: "success", 
-        title: "Berhasil!", 
-        message: "Dokumen bukti Anda telah tersimpan di Drive Panitia." 
-      });
+      setModal({ isOpen: true, type: "success", title: "Sukses!", message: "Semua perubahan berkas berhasil disimpan ke Drive." });
       
-      // Refresh data drive setelah sukses upload
-      fetchExistingFiles(user.driveFolderId);
-      setFiles({}); 
+      // Refresh daftar centang hijau
+      if (user) fetchExistingFiles(user.driveFolderId);
+      setFiles({}); // Kosongkan pilihan file di layar
 
     } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Gagal", message: error.message });
+      setModal({ isOpen: true, type: "error", title: "Error 500 / Gagal", message: error.message });
     } finally {
       setLoading(false);
       setUploadIndex(0);
