@@ -5,7 +5,7 @@ import ModalNotif from "@/components/ModalNotif";
 import TombolLogout from "@/components/TombolLogout";
 import Link from "next/link";
 
-// 📦 DATABASE PERSYARATAN BERKAS
+// 📦 DATABASE PERSYARATAN BERKAS (Tetap sama)
 const DAFTAR_BERKAS = [
   {
     kategori: "Kategori I: Pengelolaan Sampah",
@@ -78,13 +78,17 @@ export default function FormUploadPeserta() {
         body: JSON.stringify({ folderIdPeserta: folderId }),
       });
       const data = await res.json();
-      if (data.berkasTerisi) setSudahAdaDiDrive(data.berkasTerisi);
+      if (data.berkasTerisi) {
+        setSudahAdaDiDrive(data.berkasTerisi);
+      }
     } catch (err) {
-      console.error("Gagal cek berkas:", err);
+      console.error("Gagal cek berkas di Drive:", err);
     }
   };
 
   const totalSyarat = DAFTAR_BERKAS.reduce((total, kat) => total + kat.items.length, 0);
+  
+  // 🟢 LOGIKA BARU: Gabungkan file yang baru dipilih + yang sudah di Drive
   const totalTerpenuhi = DAFTAR_BERKAS.flatMap(k => k.items).filter(item => 
     files[item.id] || sudahAdaDiDrive.includes(item.id)
   ).length;
@@ -119,9 +123,10 @@ export default function FormUploadPeserta() {
   };
 
   const handleSubmit = async () => {
-    if (totalTerpenuhi < totalSyarat) {
-      setModal({ isOpen: true, type: "error", title: "Belum Lengkap", message: `Wajib mengisi ${totalSyarat} berkas.` });
-      return;
+    // Validasi hanya jika ingin mengirim, pastikan minimal 1 file baru dipilih
+    if (Object.keys(files).length === 0) {
+       setModal({ isOpen: true, type: "error", title: "Tidak ada file baru", message: `Pilih minimal satu file baru untuk diunggah.` });
+       return;
     }
 
     setLoading(true);
@@ -146,8 +151,12 @@ export default function FormUploadPeserta() {
         if (!res.ok) throw new Error("Gagal upload berkas.");
       }
 
-      setModal({ isOpen: true, type: "success", title: "Sukses!", message: "Semua berkas berhasil disimpan." });
-      fetchExistingFiles(user.driveFolderId);
+      setModal({ isOpen: true, type: "success", title: "Sukses!", message: "File baru berhasil ditambahkan." });
+      
+      // 🟢 PENTING: Panggil ulang Drive untuk mendapatkan data terbaru
+      await fetchExistingFiles(user.driveFolderId);
+      
+      // 🟢 PENTING: Kosongkan antrean file agar progress bar menggunakan data Drive murni
       setFiles({}); 
 
     } catch (error: any) {
@@ -157,6 +166,15 @@ export default function FormUploadPeserta() {
       setUploadIndex(0);
     }
   };
+
+  const handleLihatBerkas = (idBerkas: string) => {
+      setModal({
+          isOpen: true,
+          type: "info",
+          title: "Akses Berkas",
+          message: `Berkas ${idBerkas} telah tersimpan aman di Google Drive Panitia DLH. Jika Anda perlu mengubahnya, silakan hubungi Admin.`
+      });
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 pb-24 pt-[100px] relative">
@@ -184,7 +202,7 @@ export default function FormUploadPeserta() {
           </div>
         </div>
 
-        {/* Progress Bar */}
+        {/* Progress Bar Dinamis */}
         <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-200 sticky top-[95px] z-40">
           <div className="flex justify-between items-end mb-4">
             <div>
@@ -216,11 +234,10 @@ export default function FormUploadPeserta() {
                       <div className="flex flex-col md:flex-row justify-between gap-4">
                         <div className="flex-1">
                           <h4 className="font-bold text-slate-800 text-sm flex gap-2 leading-tight">
-                            <span>{active ? "✅" : "⚠️"}</span>
+                            <span>{existsInDrive ? "🔒" : isSelected ? "✅" : "⚠️"}</span>
                             {item.label}
                           </h4>
                           
-                          {/* 🟢 AREA BADGE TULISAN (FORMAT & ID) */}
                           <div className="flex flex-wrap gap-2 mt-2">
                             <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-2 py-1 rounded-md uppercase tracking-tighter">
                               {item.id}
@@ -229,33 +246,45 @@ export default function FormUploadPeserta() {
                               Format: {item.format}
                             </span>
                             {existsInDrive && (
-                              <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md uppercase tracking-tighter">
-                                Tersimpan di Drive
+                              <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md uppercase tracking-tighter shadow-sm">
+                                Terekam di Sistem
                               </span>
                             )}
                           </div>
                         </div>
 
                         <div className="flex gap-2 items-center">
-                          {isSelected && (
-                            <button onClick={() => hapusFile(item.id)} className="w-10 h-10 flex items-center justify-center bg-red-50 text-red-500 rounded-xl border border-red-100">🗑️</button>
+                          {/* 🟢 LOGIKA TAMPILAN: JIKA SUDAH ADA DI DRIVE, KUNCI. JIKA BELUM, MUNCULKAN INPUT */}
+                          {existsInDrive ? (
+                              <button 
+                                onClick={() => handleLihatBerkas(item.id)}
+                                className="font-black py-3 px-6 rounded-xl border text-[10px] uppercase tracking-widest block text-center shadow-sm bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200 transition-all"
+                              >
+                                Lihat Berkas
+                              </button>
+                          ) : (
+                              <>
+                                {isSelected && (
+                                  <button onClick={() => hapusFile(item.id)} className="w-10 h-10 flex items-center justify-center bg-red-50 text-red-500 rounded-xl border border-red-100 hover:bg-red-100 transition-colors">🗑️</button>
+                                )}
+                                <div className="relative">
+                                  <input 
+                                    type="file" 
+                                    id={`f-${item.id}`} 
+                                    className="hidden" 
+                                    onChange={(e) => handleFileChange(e, item.id)} 
+                                    disabled={loading}
+                                    accept={item.format.includes('.pdf') && item.format.includes('.jpg') ? ".pdf,.jpg,.jpeg,.png" : item.format.includes('.pdf') ? ".pdf" : ".jpg,.jpeg,.png"}
+                                  />
+                                  <label htmlFor={`f-${item.id}`} className={`cursor-pointer font-black py-3 px-6 rounded-xl border text-[10px] uppercase tracking-widest block text-center shadow-sm transition-all ${isSelected ? 'bg-white text-emerald-700 border-emerald-200' : 'bg-slate-900 text-white hover:bg-slate-800'}`}>
+                                    {isSelected ? "Ganti File" : "Pilih File"}
+                                  </label>
+                                </div>
+                              </>
                           )}
-                          <div className="relative">
-                            <input 
-                              type="file" 
-                              id={`f-${item.id}`} 
-                              className="hidden" 
-                              onChange={(e) => handleFileChange(e, item.id)} 
-                              disabled={loading}
-                              accept={item.format.includes('.pdf') && item.format.includes('.jpg') ? ".pdf,.jpg,.jpeg,.png" : item.format.includes('.pdf') ? ".pdf" : ".jpg,.jpeg,.png"}
-                            />
-                            <label htmlFor={`f-${item.id}`} className={`cursor-pointer font-black py-3 px-6 rounded-xl border text-[10px] uppercase tracking-widest block text-center shadow-sm ${active ? 'bg-white text-emerald-700 border-emerald-200' : 'bg-slate-900 text-white'}`}>
-                              {isSelected ? "Ganti File" : existsInDrive ? "Perbarui" : "Pilih File"}
-                            </label>
-                          </div>
                         </div>
                       </div>
-                      {isSelected && (
+                      {isSelected && !existsInDrive && (
                         <p className="mt-3 text-[10px] font-bold text-emerald-600 italic">📎 Menunggu Kirim: {files[item.id].name}</p>
                       )}
                     </div>
@@ -273,8 +302,12 @@ export default function FormUploadPeserta() {
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Syarat</p>
           <p className="text-xl font-black text-slate-800">{totalTerpenuhi} <span className="text-slate-300 text-sm">/ {totalSyarat}</span></p>
         </div>
-        <button onClick={handleSubmit} disabled={loading || Object.keys(files).length === 0} className={`w-full sm:w-auto font-black py-4 px-10 rounded-2xl shadow-lg uppercase text-[10px] tracking-widest flex gap-2 items-center justify-center ${loading ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white disabled:bg-slate-200 disabled:text-slate-400'}`}>
-          {loading ? `⏳ MENGUNGGAH ${uploadIndex}...` : "🚀 KIRIM PERUBAHAN KE DRIVE"}
+        <button 
+          onClick={handleSubmit} 
+          disabled={loading || Object.keys(files).length === 0} 
+          className={`w-full sm:w-auto font-black py-4 px-10 rounded-2xl shadow-lg uppercase text-[10px] tracking-widest flex gap-2 items-center justify-center transition-all ${loading ? 'bg-amber-500 text-white' : Object.keys(files).length === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
+        >
+          {loading ? `⏳ MENGUNGGAH ${uploadIndex}...` : Object.keys(files).length === 0 ? "TIDAK ADA FILE BARU" : "🚀 KIRIM PERUBAHAN KE DRIVE"}
         </button>
       </div>
     </main>
