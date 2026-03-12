@@ -226,6 +226,30 @@ export default function FormUploadPeserta() {
                   const isSelected = !!files[item.id];
                   const active = existsInDrive || isSelected;
 
+                  <div className="flex-1">
+                    <h4 className="font-bold text-slate-800 text-sm flex gap-2 leading-tight">
+                        <span>{active ? "✅" : "⚠️"}</span>
+                        {item.label}
+                    </h4>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                        {/* ID Kode Berkas */}
+                        <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-2 py-1 rounded-md uppercase tracking-tighter">
+                        {item.id}
+                        </span>
+
+                        {/* 🟢 TAMPILAN FORMAT (YANG TADI HILANG) */}
+                        <span className="text-[9px] font-black bg-blue-50 text-blue-600 border border-blue-100 px-2 py-1 rounded-md uppercase tracking-tighter">
+                        Format: {item.format}
+                        </span>
+
+                        {existsInDrive && (
+                        <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md uppercase tracking-tighter">
+                            Tersimpan di Drive
+                        </span>
+                        )}
+                    </div>
+                  </div>
+
                   return (
                     <div key={item.id} className={`p-5 rounded-2xl border-2 transition-all ${active ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-100 hover:bg-slate-50'}`}>
                       <div className="flex flex-col md:flex-row justify-between gap-4">
