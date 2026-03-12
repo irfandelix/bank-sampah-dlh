@@ -4,73 +4,56 @@ import { Readable } from "stream";
 
 export async function POST(request: Request) {
   try {
-    // 1. Tangkap data dari form (Sekarang kita juga minta nama folder & nama peserta)
     const formData = await request.formData();
     const file = formData.get("file") as File;
-    const namaFolderKat = formData.get("namaFolder") as string; // Contoh: "Kat. III No. 6"
-    const namaPeserta = formData.get("namaPeserta") as string;  // Contoh: "Bank Sampah Maju Jaya"
+    const namaKategori = formData.get("namaFolder") as string; // Contoh: Kat. I No. 1
+    const folderIdPeserta = formData.get("folderId") as string; // ID Folder si ZigiZaga
+    const namaPeserta = formData.get("namaPeserta") as string;
 
-    if (!file || !namaFolderKat || !namaPeserta) {
-      return NextResponse.json({ error: "Data tidak lengkap" }, { status: 400 });
+    if (!file || !namaKategori || !folderIdPeserta) {
+      return NextResponse.json({ error: "Data kurang lengkap" }, { status: 400 });
     }
 
-    // 2. Ubah file menjadi format Buffer -> Stream
     const buffer = Buffer.from(await file.arrayBuffer());
     const stream = Readable.from(buffer);
 
-    // 3. Masukkan 3 Kunci Sakti dari file .env
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
       "https://developers.google.com/oauthplayground"
     );
-
-    oauth2Client.setCredentials({
-      refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
-    });
+    oauth2Client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
 
     const drive = google.drive({ version: "v3", auth: oauth2Client });
-    const mainFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID as string;
 
-    // ==========================================
-    // 🎯 FITUR BARU: CARI ATAU BIKIN FOLDER OTOMATIS
-    // ==========================================
-    
-    // Cek apakah folder "Kat. III No. 6" sudah ada di dalam folder utama DLH
+    // 1. CARI / BUAT FOLDER KATEGORI DI DALAM FOLDER PESERTA
+    // Perhatikan: q nya sekarang pakai folderIdPeserta sebagai parent
     const cekFolder = await drive.files.list({
-      q: `mimeType='application/vnd.google-apps.folder' and name='${namaFolderKat}' and '${mainFolderId}' in parents and trashed=false`,
+      q: `mimeType='application/vnd.google-apps.folder' and name='${namaKategori}' and '${folderIdPeserta}' in parents and trashed=false`,
       fields: 'files(id, name)',
     });
 
     let targetFolderId = "";
-
     if (cekFolder.data.files && cekFolder.data.files.length > 0) {
-      // Foldernya udah ada, ambil ID-nya
       targetFolderId = cekFolder.data.files[0].id as string;
     } else {
-      // Foldernya belum ada, sistem bikinin otomatis!
+      // Kalau belum ada kategori itu di dalam folder peserta, kita buatkan
       const buatFolder = await drive.files.create({
         requestBody: {
-          name: namaFolderKat,
+          name: namaKategori,
           mimeType: "application/vnd.google-apps.folder",
-          parents: [mainFolderId],
+          parents: [folderIdPeserta], // 👈 KUNCI: Masuk ke folder peserta (ZigiZaga)
         },
         fields: "id",
       });
       targetFolderId = buatFolder.data.id as string;
     }
 
-    // ==========================================
-    // 🎯 UPLOAD KE FOLDER YANG TEPAT & UBAH NAMA FILE
-    // ==========================================
-    
-    // Biar gak ketuker, nama file digabung sama nama peserta
-    const namaFileRapi = `[${namaPeserta}] - ${file.name}`;
-
+    // 2. UPLOAD FILE KE DALAM FOLDER KATEGORI TERSEBUT
     const response = await drive.files.create({
       requestBody: {
-        name: namaFileRapi,
-        parents: [targetFolderId], // 👈 Masuk ke folder kategori, bukan folder utama
+        name: `[${namaPeserta}] - ${file.name}`,
+        parents: [targetFolderId],
       },
       media: {
         mimeType: file.type,
@@ -78,13 +61,10 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ 
-      pesan: "Berhasil upload ke Google Drive!", 
-      fileId: response.data.id 
-    }, { status: 200 });
+    return NextResponse.json({ pesan: "Berhasil!", id: response.data.id }, { status: 200 });
 
-  } catch (error) {
-    console.error("Gagal Upload:", error);
-    return NextResponse.json({ error: "Gagal mengirim file ke server Google" }, { status: 500 });
+  } catch (error: any) {
+    console.error("Gagal:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
