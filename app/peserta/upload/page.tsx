@@ -5,7 +5,6 @@ import ModalNotif from "@/components/ModalNotif";
 import TombolLogout from "@/components/TombolLogout";
 import Link from "next/link";
 
-// 📦 DATABASE PERSYARATAN BERKAS (Tetap sama)
 const DAFTAR_BERKAS = [
   {
     kategori: "Kategori I: Pengelolaan Sampah",
@@ -66,16 +65,17 @@ export default function FormUploadPeserta() {
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
-      fetchExistingFiles(parsedUser.driveFolderId);
+      // MENGGUNAKAN NAMA PESERTA SEBAGAI KUNCI PENCARIAN
+      fetchExistingFiles(parsedUser.namaInstansi || parsedUser.username);
     }
   }, []);
 
-  const fetchExistingFiles = async (folderId: string) => {
-    if (!folderId) return;
+  const fetchExistingFiles = async (namaPeserta: string) => {
+    if (!namaPeserta) return;
     try {
       const res = await fetch("/api/peserta/cek-berkas", {
         method: "POST",
-        body: JSON.stringify({ folderIdPeserta: folderId }),
+        body: JSON.stringify({ namaPeserta: namaPeserta }),
       });
       const data = await res.json();
       if (data.berkasTerisi) {
@@ -88,7 +88,6 @@ export default function FormUploadPeserta() {
 
   const totalSyarat = DAFTAR_BERKAS.reduce((total, kat) => total + kat.items.length, 0);
   
-  // 🟢 LOGIKA BARU: Gabungkan file yang baru dipilih + yang sudah di Drive
   const totalTerpenuhi = DAFTAR_BERKAS.flatMap(k => k.items).filter(item => 
     files[item.id] || sudahAdaDiDrive.includes(item.id)
   ).length;
@@ -123,7 +122,6 @@ export default function FormUploadPeserta() {
   };
 
   const handleSubmit = async () => {
-    // Validasi hanya jika ingin mengirim, pastikan minimal 1 file baru dipilih
     if (Object.keys(files).length === 0) {
        setModal({ isOpen: true, type: "error", title: "Tidak ada file baru", message: `Pilih minimal satu file baru untuk diunggah.` });
        return;
@@ -140,7 +138,6 @@ export default function FormUploadPeserta() {
         const formData = new FormData();
         formData.append("file", fileObj);
         formData.append("namaFolder", idBerkas);
-        formData.append("folderId", user.driveFolderId);
         formData.append("namaPeserta", user.namaInstansi || user.username);
 
         const res = await fetch("/api/peserta/upload-gdrive", {
@@ -151,12 +148,11 @@ export default function FormUploadPeserta() {
         if (!res.ok) throw new Error("Gagal upload berkas.");
       }
 
-      setModal({ isOpen: true, type: "success", title: "Sukses!", message: "File baru berhasil ditambahkan." });
+      setModal({ isOpen: true, type: "success", title: "Sukses!", message: "File baru berhasil ditambahkan dan dikunci." });
       
-      // 🟢 PENTING: Panggil ulang Drive untuk mendapatkan data terbaru
-      await fetchExistingFiles(user.driveFolderId);
+      // RE-FETCH PAKE NAMA PESERTA BIAR LANGSUNG KUNCI
+      await fetchExistingFiles(user.namaInstansi || user.username);
       
-      // 🟢 PENTING: Kosongkan antrean file agar progress bar menggunakan data Drive murni
       setFiles({}); 
 
     } catch (error: any) {
@@ -254,7 +250,6 @@ export default function FormUploadPeserta() {
                         </div>
 
                         <div className="flex gap-2 items-center">
-                          {/* 🟢 LOGIKA TAMPILAN: JIKA SUDAH ADA DI DRIVE, KUNCI. JIKA BELUM, MUNCULKAN INPUT */}
                           {existsInDrive ? (
                               <button 
                                 onClick={() => handleLihatBerkas(item.id)}
