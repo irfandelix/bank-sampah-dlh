@@ -84,7 +84,33 @@ export default function AdminDashboard() {
     }
   };
 
-  const exportToExcel = () => { /* Excel Logic */ };
+  // 📥 FUNGSI EXPORT EXCEL
+  const exportToExcel = () => {
+    if (klasemen.length === 0) {
+      setModal({ isOpen: true, type: "error", title: "Data Kosong", message: "Belum ada data klasemen untuk diexport." });
+      return;
+    }
+
+    const dataExcel = klasemen.map((item, index) => ({
+      "Peringkat": index + 1,
+      "Nama Bank Sampah": item.namaInstansi,
+      "Kecamatan": item.kecamatan,
+      "ID Login": item.username,
+      "Nilai DLH (40%)": Number(item.skorDLH || 0),
+      "Nilai DKK (20%)": Number(item.skorDKK || 0),
+      "Nilai BSI (25%)": Number(item.skorBSI || 0),
+      "Nilai PMD (15%)": Number(item.skorPMD || 0),
+      "Total Skor": Number(item.skor || 0).toFixed(2),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataExcel);
+    worksheet["!cols"] = [
+      { wch: 10 }, { wch: 35 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+    ];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Hasil Evaluasi");
+    XLSX.writeFile(workbook, "Laporan_Klasemen_Bank_Sampah_Sragen_2026.xlsx");
+  };
 
   useEffect(() => {
     fetchDashboardData();
