@@ -58,14 +58,15 @@ export default function FormUploadPeserta() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [uploadIndex, setUploadIndex] = useState(0);
-  const [sudahAdaDiDrive, setSudahAdaDiDrive] = useState<string[]>([]);
+  
+  // 🟢 State berubah dari Array ke Object (Nyimpan Link Preview)
+  const [sudahAdaDiDrive, setSudahAdaDiDrive] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const savedUser = sessionStorage.getItem("user");
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
-      // MENGGUNAKAN NAMA PESERTA SEBAGAI KUNCI PENCARIAN
       fetchExistingFiles(parsedUser.namaInstansi || parsedUser.username);
     }
   }, []);
@@ -79,7 +80,7 @@ export default function FormUploadPeserta() {
       });
       const data = await res.json();
       if (data.berkasTerisi) {
-        setSudahAdaDiDrive(data.berkasTerisi);
+        setSudahAdaDiDrive(data.berkasTerisi); // Simpan Link Preview-nya
       }
     } catch (err) {
       console.error("Gagal cek berkas di Drive:", err);
@@ -89,10 +90,10 @@ export default function FormUploadPeserta() {
   const totalSyarat = DAFTAR_BERKAS.reduce((total, kat) => total + kat.items.length, 0);
   
   const totalTerpenuhi = DAFTAR_BERKAS.flatMap(k => k.items).filter(item => 
-    files[item.id] || sudahAdaDiDrive.includes(item.id)
+    files[item.id] || !!sudahAdaDiDrive[item.id] // Cek apakah ada di Object
   ).length;
 
-  const progressPersen = (totalTerpenuhi / totalSyarat) * 100;
+  const progressPersen = (totalSyarat === 0) ? 0 : (totalTerpenuhi / totalSyarat) * 100;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, idBerkas: string) => {
     if (e.target.files && e.target.files[0]) {
@@ -150,9 +151,7 @@ export default function FormUploadPeserta() {
 
       setModal({ isOpen: true, type: "success", title: "Sukses!", message: "File baru berhasil ditambahkan dan dikunci." });
       
-      // RE-FETCH PAKE NAMA PESERTA BIAR LANGSUNG KUNCI
       await fetchExistingFiles(user.namaInstansi || user.username);
-      
       setFiles({}); 
 
     } catch (error: any) {
@@ -163,13 +162,19 @@ export default function FormUploadPeserta() {
     }
   };
 
+  // 🟢 FUNGSI BARU: Buka Tab Baru untuk Preview Drive
   const handleLihatBerkas = (idBerkas: string) => {
-      setModal({
-          isOpen: true,
-          type: "info",
-          title: "Akses Berkas",
-          message: `Berkas ${idBerkas} telah tersimpan aman di Google Drive Panitia DLH. Jika Anda perlu mengubahnya, silakan hubungi Admin.`
-      });
+      const linkPreview = sudahAdaDiDrive[idBerkas];
+      if (linkPreview) {
+          window.open(linkPreview, '_blank'); // Buka link di Tab Baru
+      } else {
+          setModal({
+              isOpen: true,
+              type: "error",
+              title: "Link Error",
+              message: "Link preview tidak ditemukan. Silakan refresh halaman."
+          });
+      }
   }
 
   return (
@@ -198,7 +203,6 @@ export default function FormUploadPeserta() {
           </div>
         </div>
 
-        {/* Progress Bar Dinamis */}
         <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-200 sticky top-[95px] z-40">
           <div className="flex justify-between items-end mb-4">
             <div>
@@ -214,14 +218,13 @@ export default function FormUploadPeserta() {
           </div>
         </div>
 
-        {/* List Berkas */}
         <div className="space-y-8">
           {DAFTAR_BERKAS.map((kategori, idxKat) => (
             <div key={idxKat} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-200">
               <h3 className="text-xl font-black text-emerald-700 mb-6 border-b pb-4">{kategori.kategori}</h3>
               <div className="space-y-4">
                 {kategori.items.map((item) => {
-                  const existsInDrive = sudahAdaDiDrive.includes(item.id);
+                  const existsInDrive = !!sudahAdaDiDrive[item.id]; // 🟢 Cek keberadaan link
                   const isSelected = !!files[item.id];
                   const active = existsInDrive || isSelected;
 
@@ -253,9 +256,9 @@ export default function FormUploadPeserta() {
                           {existsInDrive ? (
                               <button 
                                 onClick={() => handleLihatBerkas(item.id)}
-                                className="font-black py-3 px-6 rounded-xl border text-[10px] uppercase tracking-widest block text-center shadow-sm bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200 transition-all"
+                                className="font-black py-3 px-6 rounded-xl border text-[10px] uppercase tracking-widest block text-center shadow-sm bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 transition-all"
                               >
-                                Lihat Berkas
+                                👁️ Lihat Berkas
                               </button>
                           ) : (
                               <>
@@ -291,7 +294,6 @@ export default function FormUploadPeserta() {
         </div>
       </div>
 
-      {/* Tombol Kirim */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-5 shadow-lg flex justify-between items-center px-8 z-40">
         <div className="hidden sm:block">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Syarat</p>

@@ -6,7 +6,7 @@ export async function POST(request: Request) {
     const { namaPeserta } = await request.json();
 
     if (!namaPeserta) {
-      return NextResponse.json({ berkasTerisi: [] });
+      return NextResponse.json({ berkasTerisi: {} }); // Sekarang pakai object {}, bukan array []
     }
 
     const oauth2Client = new google.auth.OAuth2(
@@ -17,39 +17,40 @@ export async function POST(request: Request) {
     oauth2Client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
     const drive = google.drive({ version: "v3", auth: oauth2Client });
     
-    // ID Folder Utama "Database Bank Sampah"
     const mainFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
-    // 1. Cari folder milik peserta (contoh: "ZigiZaga") di dalam Folder Utama
+    // 1. Cari folder milik peserta
     const cekFolderPeserta = await drive.files.list({
       q: `mimeType='application/vnd.google-apps.folder' and name='${namaPeserta}' and '${mainFolderId}' in parents and trashed=false`,
       fields: "files(id)",
     });
 
-    // Kalau foldernya belum ada, berarti memang belum upload apa-apa
     if (!cekFolderPeserta.data.files || cekFolderPeserta.data.files.length === 0) {
-      return NextResponse.json({ berkasTerisi: [] });
+      return NextResponse.json({ berkasTerisi: {} });
     }
 
     const folderPesertaId = cekFolderPeserta.data.files[0].id;
 
-    // 2. Ambil semua laci kategori di dalam folder peserta
+    // 2. Ambil semua laci kategori
     const resFolderKategori = await drive.files.list({
       q: `'${folderPesertaId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
       fields: "files(id, name)",
     });
 
     const folderKategori = resFolderKategori.data.files || [];
-    const berkasTerisi: string[] = [];
+    
+    // 🟢 LOGIKA BARU: Simpan nama kategori DAN Link Preview-nya
+    const berkasTerisi: Record<string, string> = {};
 
-    // 3. Intip ke dalam tiap laci kategori, apakah ada isinya?
     for (const folder of folderKategori) {
       const resFile = await drive.files.list({
         q: `'${folder.id}' in parents and trashed=false`,
-        fields: "files(id)",
+        fields: "files(id, webViewLink)", // 👈 Di sini kita minta Link Preview!
       });
+      
       if (resFile.data.files && resFile.data.files.length > 0) {
-        berkasTerisi.push(folder.name!); // Masukkan nama kategori (misal "Kat. I No. 1")
+        // Simpan link file pertama yang ketemu ke dalam object
+        berkasTerisi[folder.name!] = resFile.data.files[0].webViewLink!;
       }
     }
 
