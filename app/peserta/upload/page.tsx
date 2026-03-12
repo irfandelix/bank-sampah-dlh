@@ -59,16 +59,13 @@ export default function FormUploadPeserta() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [uploadIndex, setUploadIndex] = useState(0);
-  const [sudahAdaDiDrive, setSudahAdaDiDrive] = useState<string[]>([]); // ✨ Simpan daftar id yang sudah ok di Drive
+  const [sudahAdaDiDrive, setSudahAdaDiDrive] = useState<string[]>([]);
 
-  // 1. Ambil identitas & Cek berkas yang sudah ada di Drive
   useEffect(() => {
     const savedUser = sessionStorage.getItem("user");
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
-      
-      // Panggil fungsi cek berkas
       fetchExistingFiles(parsedUser.driveFolderId);
     }
   }, []);
@@ -81,17 +78,13 @@ export default function FormUploadPeserta() {
         body: JSON.stringify({ folderIdPeserta: folderId }),
       });
       const data = await res.json();
-      if (data.berkasTerisi) {
-        setSudahAdaDiDrive(data.berkasTerisi);
-      }
+      if (data.berkasTerisi) setSudahAdaDiDrive(data.berkasTerisi);
     } catch (err) {
-      console.error("Gagal cek berkas di Drive:", err);
+      console.error("Gagal cek berkas:", err);
     }
   };
 
   const totalSyarat = DAFTAR_BERKAS.reduce((total, kat) => total + kat.items.length, 0);
-  
-  // ✨ Hitung progres gabungan: yang baru dipilih ATAU yang sudah ada di Drive
   const totalTerpenuhi = DAFTAR_BERKAS.flatMap(k => k.items).filter(item => 
     files[item.id] || sudahAdaDiDrive.includes(item.id)
   ).length;
@@ -104,7 +97,7 @@ export default function FormUploadPeserta() {
       const maxSize = 5 * 1024 * 1024; 
 
       if (selectedFile.size > maxSize) {
-        setModal({ isOpen: true, type: "error", title: "Ukuran File Terlalu Besar", message: `Gagal! File "${selectedFile.name}" melebihi batas 5 MB.` });
+        setModal({ isOpen: true, type: "error", title: "File Terlalu Besar", message: `Gagal! File melebihi batas 5 MB.` });
         e.target.value = ''; 
         return;
       }
@@ -126,9 +119,8 @@ export default function FormUploadPeserta() {
   };
 
   const handleSubmit = async () => {
-    // Gabungkan file yang baru dipilih + yang sudah ada di Drive untuk validasi kelengkapan
     if (totalTerpenuhi < totalSyarat) {
-      setModal({ isOpen: true, type: "error", title: "Belum Lengkap", message: `Wajib ${totalSyarat} berkas. Anda baru ${totalTerpenuhi}.` });
+      setModal({ isOpen: true, type: "error", title: "Belum Lengkap", message: `Wajib mengisi ${totalSyarat} berkas.` });
       return;
     }
 
@@ -136,15 +128,14 @@ export default function FormUploadPeserta() {
     let prosesKe = 0;
 
     try {
-      // Hanya upload file yang ADA di state 'files' (file baru yang dipilih)
       for (const [idBerkas, fileObj] of Object.entries(files)) {
         prosesKe++;
         setUploadIndex(prosesKe);
 
         const formData = new FormData();
         formData.append("file", fileObj);
-        formData.append("namaFolder", idBerkas); // Contoh: "Kat. I No. 1"
-        formData.append("folderId", user.driveFolderId); // ID folder peserta dari MongoDB
+        formData.append("namaFolder", idBerkas);
+        formData.append("folderId", user.driveFolderId);
         formData.append("namaPeserta", user.namaInstansi || user.username);
 
         const res = await fetch("/api/peserta/upload-gdrive", {
@@ -152,20 +143,15 @@ export default function FormUploadPeserta() {
           body: formData,
         });
 
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || "Gagal upload salah satu berkas.");
-        }
+        if (!res.ok) throw new Error("Gagal upload berkas.");
       }
 
-      setModal({ isOpen: true, type: "success", title: "Sukses!", message: "Semua perubahan berkas berhasil disimpan ke Drive." });
-      
-      // Refresh daftar centang hijau
-      if (user) fetchExistingFiles(user.driveFolderId);
-      setFiles({}); // Kosongkan pilihan file di layar
+      setModal({ isOpen: true, type: "success", title: "Sukses!", message: "Semua berkas berhasil disimpan." });
+      fetchExistingFiles(user.driveFolderId);
+      setFiles({}); 
 
     } catch (error: any) {
-      setModal({ isOpen: true, type: "error", title: "Error 500 / Gagal", message: error.message });
+      setModal({ isOpen: true, type: "error", title: "Gagal", message: error.message });
     } finally {
       setLoading(false);
       setUploadIndex(0);
@@ -190,7 +176,6 @@ export default function FormUploadPeserta() {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 space-y-6">
-        {/* Banner Identitas */}
         <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-200 text-center">
           <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-4 text-3xl mx-auto border border-emerald-100 shadow-inner">📁</div>
           <h2 className="text-2xl font-black text-slate-800">Portal Unggah Dokumen</h2>
@@ -199,7 +184,7 @@ export default function FormUploadPeserta() {
           </div>
         </div>
 
-        {/* Progress Bar Dinamis */}
+        {/* Progress Bar */}
         <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-200 sticky top-[95px] z-40">
           <div className="flex justify-between items-end mb-4">
             <div>
@@ -215,7 +200,7 @@ export default function FormUploadPeserta() {
           </div>
         </div>
 
-        {/* Daftar Item */}
+        {/* List Berkas */}
         <div className="space-y-8">
           {DAFTAR_BERKAS.map((kategori, idxKat) => (
             <div key={idxKat} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-200">
@@ -226,56 +211,53 @@ export default function FormUploadPeserta() {
                   const isSelected = !!files[item.id];
                   const active = existsInDrive || isSelected;
 
-                  <div className="flex-1">
-                    <h4 className="font-bold text-slate-800 text-sm flex gap-2 leading-tight">
-                        <span>{active ? "✅" : "⚠️"}</span>
-                        {item.label}
-                    </h4>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                        {/* ID Kode Berkas */}
-                        <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-2 py-1 rounded-md uppercase tracking-tighter">
-                        {item.id}
-                        </span>
-
-                        {/* 🟢 TAMPILAN FORMAT (YANG TADI HILANG) */}
-                        <span className="text-[9px] font-black bg-blue-50 text-blue-600 border border-blue-100 px-2 py-1 rounded-md uppercase tracking-tighter">
-                        Format: {item.format}
-                        </span>
-
-                        {existsInDrive && (
-                        <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md uppercase tracking-tighter">
-                            Tersimpan di Drive
-                        </span>
-                        )}
-                    </div>
-                  </div>
-
                   return (
                     <div key={item.id} className={`p-5 rounded-2xl border-2 transition-all ${active ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-100 hover:bg-slate-50'}`}>
                       <div className="flex flex-col md:flex-row justify-between gap-4">
                         <div className="flex-1">
-                          <h4 className="font-bold text-slate-800 text-sm flex gap-2">
+                          <h4 className="font-bold text-slate-800 text-sm flex gap-2 leading-tight">
                             <span>{active ? "✅" : "⚠️"}</span>
                             {item.label}
                           </h4>
-                          <div className="flex gap-2 mt-2">
-                            <span className="text-[9px] font-black bg-white/50 border border-slate-200 px-2 py-1 rounded-md text-slate-400 uppercase">{item.id}</span>
-                            {existsInDrive && <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md uppercase">Sudah Ada di Drive</span>}
+                          
+                          {/* 🟢 AREA BADGE TULISAN (FORMAT & ID) */}
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-2 py-1 rounded-md uppercase tracking-tighter">
+                              {item.id}
+                            </span>
+                            <span className="text-[9px] font-black bg-blue-50 text-blue-600 border border-blue-100 px-2 py-1 rounded-md uppercase tracking-tighter">
+                              Format: {item.format}
+                            </span>
+                            {existsInDrive && (
+                              <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md uppercase tracking-tighter">
+                                Tersimpan di Drive
+                              </span>
+                            )}
                           </div>
                         </div>
 
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 items-center">
                           {isSelected && (
-                            <button onClick={() => hapusFile(item.id)} className="w-10 h-10 bg-red-50 text-red-500 rounded-xl border border-red-100">🗑️</button>
+                            <button onClick={() => hapusFile(item.id)} className="w-10 h-10 flex items-center justify-center bg-red-50 text-red-500 rounded-xl border border-red-100">🗑️</button>
                           )}
                           <div className="relative">
-                            <input type="file" id={`f-${item.id}`} className="hidden" onChange={(e) => handleFileChange(e, item.id)} disabled={loading} />
+                            <input 
+                              type="file" 
+                              id={`f-${item.id}`} 
+                              className="hidden" 
+                              onChange={(e) => handleFileChange(e, item.id)} 
+                              disabled={loading}
+                              accept={item.format.includes('.pdf') && item.format.includes('.jpg') ? ".pdf,.jpg,.jpeg,.png" : item.format.includes('.pdf') ? ".pdf" : ".jpg,.jpeg,.png"}
+                            />
                             <label htmlFor={`f-${item.id}`} className={`cursor-pointer font-black py-3 px-6 rounded-xl border text-[10px] uppercase tracking-widest block text-center shadow-sm ${active ? 'bg-white text-emerald-700 border-emerald-200' : 'bg-slate-900 text-white'}`}>
                               {isSelected ? "Ganti File" : existsInDrive ? "Perbarui" : "Pilih File"}
                             </label>
                           </div>
                         </div>
                       </div>
+                      {isSelected && (
+                        <p className="mt-3 text-[10px] font-bold text-emerald-600 italic">📎 Menunggu Kirim: {files[item.id].name}</p>
+                      )}
                     </div>
                   );
                 })}
