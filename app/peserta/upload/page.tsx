@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ModalNotif from "@/components/ModalNotif"; 
 import TombolLogout from "@/components/TombolLogout";
 
-// 📦 DATABASE PERSYARATAN BERKAS (Sesuai Permintaan DLH)
+// 📦 DATABASE PERSYARATAN BERKAS
 const DAFTAR_BERKAS = [
   {
     kategori: "Kategori I: Pengelolaan Sampah",
@@ -53,12 +53,20 @@ const DAFTAR_BERKAS = [
 ];
 
 export default function FormUploadPeserta() {
-  // State untuk menyimpan daftar file yang diupload peserta { "Kat. I No. 1": FileObj }
   const [files, setFiles] = useState<Record<string, File>>({});
   const [modal, setModal] = useState({ isOpen: false, type: "", title: "", message: "" });
   const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<any>(null); // State untuk simpan data peserta
+  const [uploadIndex, setUploadIndex] = useState(0); // State untuk animasi progress upload
 
-  // Total File yang dibutuhkan
+  // Ambil identitas peserta yang sedang login
+  useEffect(() => {
+    const savedUser = sessionStorage.getItem("user");
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+  }, []);
+
   const totalSyarat = DAFTAR_BERKAS.reduce((total, kat) => total + kat.items.length, 0);
   const jumlahFileTerisi = Object.keys(files).length;
   const progressPersen = (jumlahFileTerisi / totalSyarat) * 100;
@@ -68,22 +76,19 @@ export default function FormUploadPeserta() {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
       
-      // Validasi Ukuran (Max 5MB)
       const maxSize = 5 * 1024 * 1024; // 5 MB
       if (selectedFile.size > maxSize) {
         setModal({ isOpen: true, type: "error", title: "Ukuran File Terlalu Besar", message: `Gagal! File "${selectedFile.name}" melebihi batas 5 MB. Silakan kompres foto/pdf Anda terlebih dahulu.` });
-        e.target.value = ''; // Reset input
+        e.target.value = ''; 
         return;
       }
 
-      // Validasi Anti Video
       if (selectedFile.type.startsWith("video/")) {
         setModal({ isOpen: true, type: "error", title: "Format Ditolak", message: "Sistem tidak menerima format video. Silakan unggah dalam bentuk Foto (JPG/PNG) atau Dokumen (PDF)." });
-        e.target.value = ''; // Reset input
+        e.target.value = ''; 
         return;
       }
 
-      // Simpan file ke State
       setFiles(prev => ({ ...prev, [idBerkas]: selectedFile }));
     }
   };
@@ -94,18 +99,64 @@ export default function FormUploadPeserta() {
     setFiles(newFiles);
   };
 
-  const handleSubmit = () => {
+  // 🚀 FUNGSI UTAMA: JAHITAN KE GOOGLE DRIVE API
+  const handleSubmit = async () => {
     if (jumlahFileTerisi < totalSyarat) {
       setModal({ isOpen: true, type: "error", title: "Berkas Belum Lengkap!", message: `Anda baru mengunggah ${jumlahFileTerisi} dari ${totalSyarat} berkas wajib. Mohon lengkapi sebelum mengirim.` });
       return;
     }
 
+    if (!user) {
+      setModal({ isOpen: true, type: "error", title: "Sesi Habis", message: "Silakan login kembali untuk mengirim berkas." });
+      return;
+    }
+
     setLoading(true);
-    // Simulasi Pengiriman ke Google Drive (Nanti diganti dengan fetch API yang sebenarnya)
-    setTimeout(() => {
+    setUploadIndex(0);
+
+    const namaPeserta = user.namaInstansi || user.username || "Peserta NN";
+    let prosesKe = 0;
+
+    try {
+      // Loop satu per satu biar server gak meledak (Sequential Upload)
+      for (const [idBerkas, fileObj] of Object.entries(files)) {
+        prosesKe++;
+        setUploadIndex(prosesKe); // Update UI: "Mengunggah 1 dari 19..."
+
+        const formData = new FormData();
+        formData.append("file", fileObj);
+        formData.append("namaFolder", idBerkas); // Contoh: "Kat. III No. 6"
+        formData.append("namaPeserta", namaPeserta);
+
+        const res = await fetch("/api/peserta/upload-gdrive", {
+          method: "POST",
+          body: formData, // fetch otomatis set multipart/form-data
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || `Gagal mengunggah berkas ${idBerkas}`);
+        }
+      }
+
+      // Kalau semua loop selesai tanpa error:
+      setModal({ 
+        isOpen: true, 
+        type: "success", 
+        title: "Berhasil Terkirim! 🚀", 
+        message: "Luar biasa! Seluruh dokumen bukti Anda telah tersimpan dengan aman di dalam folder Google Drive Panitia DLH Sragen." 
+      });
+      
+      // (Opsional) Hapus file dari layar setelah sukses
+      // setFiles({}); 
+
+    } catch (error: any) {
+      console.error("Error Upload:", error);
+      setModal({ isOpen: true, type: "error", title: "Upload Terhenti", message: error.message || "Koneksi terputus saat mengunggah berkas." });
+    } finally {
       setLoading(false);
-      setModal({ isOpen: true, type: "success", title: "Berhasil Terkirim! 🚀", message: "Seluruh berkas Anda telah masuk ke dalam folder Google Drive Panitia DLH Sragen sesuai dengan kategorinya." });
-    }, 2000);
+      setUploadIndex(0);
+    }
   };
 
   const tutupModal = () => setModal({ ...modal, isOpen: false });
@@ -131,13 +182,15 @@ export default function FormUploadPeserta() {
 
       <div className="max-w-4xl mx-auto px-4 space-y-6">
         
-        {/* Banner Identitas */}
+        {/* Banner Identitas (Sekarang Dinamis) */}
         <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-200 text-center flex flex-col items-center">
           <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-4 text-3xl shadow-inner border border-emerald-100">📁</div>
           <h2 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">Portal Unggah Dokumen</h2>
           <p className="text-sm text-slate-500 mt-2 font-medium">Lomba Bank Sampah DLH Kabupaten Sragen 2026</p>
           <div className="mt-5 py-3 px-6 bg-slate-50 rounded-2xl inline-block text-xs font-medium text-slate-500 border border-slate-200">
-            Peserta: <span className="font-extrabold text-emerald-700 uppercase tracking-wide">Menunggu Data...</span>
+            Peserta: <span className="font-extrabold text-emerald-700 uppercase tracking-wide">
+              {user ? (user.namaInstansi || user.username) : "Memuat Data..."}
+            </span>
           </div>
         </div>
 
@@ -175,7 +228,6 @@ export default function FormUploadPeserta() {
                 {kategori.items.map((item, idxItem) => {
                   const hasFile = !!files[item.id];
                   const fileData = files[item.id];
-                  // Filter input form html (covert ex: .pdf, .jpg -> application/pdf, image/jpeg)
                   const acceptFormat = item.format.includes('.pdf') && item.format.includes('.jpg') 
                     ? "application/pdf, image/jpeg, image/png" 
                     : item.format.includes('.pdf') ? "application/pdf" : "image/jpeg, image/png";
@@ -195,24 +247,24 @@ export default function FormUploadPeserta() {
                         </div>
                         
                         <div className="flex-none flex items-center gap-3">
-                          {/* Tombol Hapus (Jika sudah upload) */}
-                          {hasFile && (
+                          {hasFile && !loading && (
                             <button onClick={() => hapusFile(item.id)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-50 text-red-500 border border-red-100 hover:bg-red-100 transition-colors" title="Hapus File">🗑️</button>
                           )}
                           
-                          {/* Input Upload */}
                           <div className="relative w-full md:w-auto">
                             <input 
                               type="file" 
                               id={`upload-${item.id}`} 
                               accept={acceptFormat}
                               className="hidden" 
+                              disabled={loading}
                               onChange={(e) => handleFileChange(e, item.id)}
                             />
                             <label 
                               htmlFor={`upload-${item.id}`} 
-                              className={`cursor-pointer font-black py-3 px-6 rounded-xl border text-xs transition-all flex items-center justify-center w-full shadow-sm active:scale-95 uppercase tracking-widest ${
-                                hasFile ? 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50' : 'bg-slate-900 text-white border-slate-800 hover:bg-black'
+                              className={`cursor-pointer font-black py-3 px-6 rounded-xl border text-xs transition-all flex items-center justify-center w-full shadow-sm uppercase tracking-widest ${
+                                loading ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200' :
+                                hasFile ? 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50 active:scale-95' : 'bg-slate-900 text-white border-slate-800 hover:bg-black active:scale-95'
                               }`}
                             >
                               {hasFile ? "Ganti" : "Pilih File"}
@@ -221,7 +273,6 @@ export default function FormUploadPeserta() {
                         </div>
                       </div>
 
-                      {/* Info Nama File */}
                       {hasFile && (
                         <div className="mt-4 pt-3 border-t border-emerald-100/50 text-[11px] font-bold text-emerald-700 flex items-center gap-2">
                           <span>{fileData.type.includes('pdf') ? '📄' : '🖼️'}</span> 
@@ -236,7 +287,6 @@ export default function FormUploadPeserta() {
             </div>
           ))}
         </div>
-
       </div>
 
       {/* --- PANEL BAWAH (Tombol Kirim) --- */}
@@ -248,12 +298,19 @@ export default function FormUploadPeserta() {
         <button 
           onClick={handleSubmit}
           disabled={loading}
-          className="w-full sm:w-auto flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black py-4 px-10 rounded-2xl shadow-lg active:scale-95 transition-all text-xs uppercase tracking-widest flex justify-center items-center gap-2"
+          className={`w-full sm:w-auto flex-1 sm:flex-none font-black py-4 px-10 rounded-2xl shadow-lg transition-all text-xs uppercase tracking-widest flex justify-center items-center gap-2 ${
+            loading ? 'bg-amber-500 hover:bg-amber-600 text-white cursor-wait' : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95'
+          }`}
         >
-          {loading ? "MENGIRIM..." : "🚀 KIRIM SEMUA DOKUMEN KE GOOGLE DRIVE"}
+          {loading ? (
+            <>
+              <span className="animate-spin text-lg">⏳</span> MENGUNGGAH {uploadIndex} DARI {jumlahFileTerisi}...
+            </>
+          ) : (
+            "🚀 KIRIM SEMUA DOKUMEN KE GOOGLE DRIVE"
+          )}
         </button>
       </div>
-      
     </main>
   );
 }

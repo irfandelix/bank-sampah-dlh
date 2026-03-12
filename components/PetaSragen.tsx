@@ -1,10 +1,22 @@
 "use client";
 
-import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
+import { MapContainer, TileLayer, GeoJSON, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useState } from "react";
+import L from "leaflet";
 
-export default function PetaSragen({ dataKlasemen }: { dataKlasemen: any[] }) {
+// 🛠️ KUNCI SAKTI: Fix icon bawaan Leaflet biar pin lokasinya muncul di Next.js
+const iconBawaan = L.icon({
+  iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+});
+
+// 🛠️ TAMBAHAN: Tambahkan `dataPeserta` di dalam kurung Props
+export default function PetaSragen({ dataKlasemen = [], dataPeserta = [] }: { dataKlasemen?: any[], dataPeserta?: any[] }) {
   const [geoData, setGeoData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -22,7 +34,7 @@ export default function PetaSragen({ dataKlasemen }: { dataKlasemen: any[] }) {
     return () => setMounted(false);
   }, []);
 
-const styleWilayah = (feature: any) => {
+  const styleWilayah = (feature: any) => {
     const namaKecPeta = feature.properties.kecamatan || ""; 
     
     // 1. Cari index/peringkat di klasemen
@@ -85,24 +97,24 @@ const styleWilayah = (feature: any) => {
   if (error) return <div className="p-10 text-red-500 font-bold">Error: {error}</div>;
   if (!geoData) return <div className="p-10 text-center font-bold text-slate-400 font-sans uppercase tracking-widest text-[10px]">Sinkronisasi Koordinat...</div>;
 
-return (
-    <div className="w-full h-full relative bg-[#1e293b] overflow-hidden rounded-[2rem]">
+  return (
+    // Background diubah jadi slate-50 biar senada dengan light mode dashboard
+    <div className="w-full h-full relative bg-slate-50 overflow-hidden rounded-[2rem]">
       {/* CSS untuk Label */}
       <style dangerouslySetInnerHTML={{ __html: `
         .label-kecamatan {
           background: transparent !important;
           border: none !important;
           box-shadow: none !important;
-          color: #cbd5e1 !important; /* Warna teks lebih terang untuk mode gelap */
+          color: #f8fafc !important; /* Warna teks putih terang */
           font-weight: 900 !important;
           font-size: 9px !important;
           text-transform: uppercase;
-          text-shadow: 0px 0px 4px rgba(0,0,0,0.8);
+          text-shadow: 0px 0px 5px rgba(0,0,0,0.9);
           pointer-events: none;
         }
-        /* Memperbaiki agar peta tidak menabrak border kontainer */
         .leaflet-container {
-          background: #1e293b !important;
+          background: #f8fafc !important;
           border-radius: 2rem !important;
         }
         .label-juara {
@@ -116,21 +128,45 @@ return (
       <MapContainer 
         center={[-7.4266, 110.9922]} 
         zoom={11} 
-        style={{ height: "100%", width: "100%", zIndex: 1 }} // Pastikan z-index rendah (1)
+        style={{ height: "100%", width: "100%", zIndex: 1 }}
         zoomControl={false}
         preferCanvas={true}
       >
-        {/* Menggunakan basemap Dark Mode agar senada dengan Dashboard baru kita */}
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
         />
+        
+        {/* LAYER 1: Poligon Kecamatan Klasemen */}
         <GeoJSON 
-          // ✅ KUNCI SAKTI: Biar peta update setiap kali ada skor yang berubah
           key={JSON.stringify(dataKlasemen)} 
           data={geoData} 
           style={styleWilayah} 
           onEachFeature={onEachFeature} 
         />
+
+        {/* ============================================== */}
+        {/* LAYER 2: Marker Titik Koordinat Peserta */}
+        {/* ============================================== */}
+        {dataPeserta && dataPeserta.length > 0 && dataPeserta.map((peserta, idx) => {
+          if (!peserta.koordinat) return null;
+          
+          const coords = peserta.koordinat.split(",").map((c: string) => parseFloat(c.trim()));
+          if (coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) return null;
+
+          return (
+            <Marker key={`marker-${idx}`} position={[coords[0], coords[1]]} icon={iconBawaan}>
+              <Popup className="rounded-xl">
+                <div className="text-center p-1">
+                  <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Lokasi Bank Sampah</p>
+                  <h3 className="font-black text-slate-800 text-sm leading-tight">{peserta.namaBank}</h3>
+                  <p className="text-xs text-slate-500 mt-1">{peserta.alamat}</p>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+        {/* ============================================== */}
+
       </MapContainer>
     </div>
   );

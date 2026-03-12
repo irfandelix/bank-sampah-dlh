@@ -1,22 +1,40 @@
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
+  // =======================================
+  // 1. DATA OTENTIKASI & IDENTITAS DASAR
+  // =======================================
   username: { type: String, required: true, unique: true },
-  password: { type: String, required: true }, // Di dunia nyata password harus di-hash (enkripsi), tapi untuk versi awal ini kita buat teks biasa dulu agar mudah dipantau
+  password: { type: String, required: true },
   role: { type: String, required: true, enum: ['ADMIN', 'JURI', 'PESERTA'] },
   namaInstansi: { type: String, required: true },
-  kecamatan: { type: String }, // ✅ TAMBAHKAN INI
-  driveFolderId: { type: String, default: "" }, // Ini tempat menyimpan ID Laci Khusus Google Drive untuk masing-masing peserta
-  skorDLH: { type: Number, default: 0 }, // Untuk Indikator 1
-  skorDKK: { type: Number, default: 0 }, // Untuk Indikator 2
-  skorBSI: { type: Number, default: 0 }, // Untuk Indikator 3
-  skorPMD: { type: Number, default: 0 }, // Untuk Indikator 4 & 5 gabungan
+  kecamatan: { type: String },
+  driveFolderId: { type: String, default: "" },
+
+  // =======================================
+  // 2. DATA PROFIL LENGKAP PESERTA (Baru Digabung!)
+  // =======================================
+  // Kita set default "" (string kosong) agar tidak error saat Admin/Juri login
+  alamat: { type: String, default: "" },
+  koordinat: { type: String, default: "" },
+  waktuPendirian: { type: String, default: "" },
+  namaKetua: { type: String, default: "" },
+  noHp: { type: String, default: "" },
+
+  // =======================================
+  // 3. DATA REKAM JEJAK PENILAIAN JURI
+  // =======================================
+  skorDLH: { type: Number, default: 0 },
+  skorDKK: { type: Number, default: 0 },
+  skorBSI: { type: Number, default: 0 },
+  skorPMD: { type: Number, default: 0 },
   detail_juri_dlh: { type: Object, default: {} },
   detail_juri_dkk: { type: Object, default: {} },
   detail_juri_bsi: { type: Object, default: {} },
   detail_juri_pmd: { type: Object, default: {} },
   skorTotal: { type: Number, default: 0 },
-  skor: { type: Number, default: 0 }, // Dipakai untuk klasemen
+  skor: { type: Number, default: 0 },
+
 }, { timestamps: true });
 
 // Mencegah Next.js membuat model ganda saat server di-restart

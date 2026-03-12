@@ -21,6 +21,9 @@ interface StatsType {
 
 export default function AdminDashboard() {
   const [klasemen, setKlasemen] = useState<any[]>([]);
+  // ✅ STATE BARU: Untuk nyimpan data profil GPS dari MongoDB
+  const [profilPeserta, setProfilPeserta] = useState<any[]>([]);
+  
   const [stats, setStats] = useState<StatsType>({ 
     totalPeserta: 0, 
     sudahDinilai: 0, 
@@ -32,11 +35,13 @@ export default function AdminDashboard() {
   const prevKlasemenRef = useRef<any[]>([]);
   const [changedIds, setChangedIds] = useState<string[]>([]);
 
+  // 📥 FUNGSI FETCH UTAMA
   const fetchDashboardData = async (isManual = false) => {
     try {
+      // 1. Tarik Data Klasemen & Stats
       const res = await fetch("/api/admin/dashboard-stats");
-      const data = await res.json();
       if (res.ok) {
+        const data = await res.json();
         if (prevKlasemenRef.current.length > 0) {
           const newChangedIds: string[] = [];
           data.klasemen.forEach((item: any, index: number) => {
@@ -51,11 +56,23 @@ export default function AdminDashboard() {
         setKlasemen(data.klasemen);
         setStats(data.stats);
         prevKlasemenRef.current = data.klasemen;
-        if (isManual) {
-          setModal({ isOpen: true, type: "success", title: "Data Terupdate", message: "Data klasemen terbaru berhasil ditarik." });
-        }
       }
-    } catch (err) { console.error("Gagal refresh data"); } finally { setLoading(false); }
+
+      // 2. ✅ FITUR BARU: Tarik Data Profil GPS dari MongoDB
+      const resProfil = await fetch("/api/admin/get-profil");
+      if (resProfil.ok) {
+        const dataProfil = await resProfil.json();
+        setProfilPeserta(dataProfil.data);
+      }
+
+      if (isManual) {
+        setModal({ isOpen: true, type: "success", title: "Data Terupdate", message: "Data klasemen dan sebaran peta terbaru berhasil ditarik." });
+      }
+    } catch (err) { 
+      console.error("Gagal refresh data"); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   // 📥 FUNGSI EXPORT EXCEL
@@ -65,7 +82,6 @@ export default function AdminDashboard() {
       return;
     }
 
-    // 1. Siapkan datanya biar rapi pas masuk Excel
     const dataExcel = klasemen.map((item, index) => ({
       "Peringkat": index + 1,
       "Nama Bank Sampah": item.namaInstansi,
@@ -78,27 +94,12 @@ export default function AdminDashboard() {
       "Total Skor": Number(item.skor || 0).toFixed(2),
     }));
 
-    // 2. Bikin lembar kerjanya (Worksheet)
     const worksheet = XLSX.utils.json_to_sheet(dataExcel);
-
-    // 3. Atur lebar kolom biar cantik nggak nyempil
     worksheet["!cols"] = [
-      { wch: 10 },  // Peringkat
-      { wch: 35 },  // Nama Bank Sampah
-      { wch: 20 },  // Kecamatan
-      { wch: 20 },  // ID Login
-      { wch: 15 },  // Nilai DLH
-      { wch: 15 },  // Nilai DKK
-      { wch: 15 },  // Nilai BSI
-      { wch: 15 },  // Nilai PMD
-      { wch: 15 },  // Total Skor
+      { wch: 10 }, { wch: 35 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
     ];
-
-    // 4. Bikin file Excel-nya (Workbook)
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Hasil Evaluasi");
-
-    // 5. Download otomatis!
     XLSX.writeFile(workbook, "Laporan_Klasemen_Bank_Sampah_Sragen_2026.xlsx");
   };
 
@@ -108,15 +109,20 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  // --- DATA DUMMY MONITORING BERKAS ---
+  // (Nanti bisa dibikin API nyusul buat baca isi GDrive)
+  const dummyBerkas = [
+    { namaBank: "Bank Sampah Resik Mukti", ketua: "Bpk. Budi", jumlah: 19, total: 19, status: "Lengkap" },
+    { namaBank: "Bank Sampah Asri Jaya", ketua: "Ibu Siti", jumlah: 15, total: 19, status: "Kurang 4 Berkas" },
+    { namaBank: "Bank Sampah Ngudi Makmur", ketua: "Bpk. Joko", jumlah: 0, total: 19, status: "Belum Unggah" },
+  ];
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-16 pt-[100px] relative">
       <ModalNotif isOpen={modal.isOpen} type={modal.type as any} title={modal.title} message={modal.message} onClose={() => setModal({ ...modal, isOpen: false })} />
 
       {/* --- HEADER BAJA ANTI-PENYOK --- */}
-      {/* ✅ Kita paksa h-[80px] dan z-[9999] biar ukurannya terkunci mutlak */}
       <header className="bg-white border-b border-slate-200 px-4 sm:px-8 h-[80px] flex justify-between items-center fixed top-0 left-0 w-full z-[9999] shadow-sm box-border">
-        
-        {/* Bagian Kiri (Teks) */}
         <div className="flex flex-col justify-center">
           <h1 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight leading-none">
             Command Center <span className="text-emerald-600">DLH</span>
@@ -125,8 +131,6 @@ export default function AdminDashboard() {
             Monitoring Bank Sampah 2026
           </p>
         </div>
-
-        {/* Bagian Kanan (Tombol) */}
         <div className="flex items-center gap-3 shrink-0">
           <TombolLogout />
           <div className="flex items-center gap-3 border-l border-slate-200 pl-4 ml-1">
@@ -139,7 +143,6 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8 space-y-6">
@@ -164,7 +167,6 @@ export default function AdminDashboard() {
                   <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{item.label}</p>
                   <p className={`text-4xl font-black mt-2 ${item.color} leading-tight`}>{item.val}</p>
                 </div>
-                
                 {item.nama ? (
                   <p className="text-[10px] font-extrabold text-emerald-600 mt-3 uppercase tracking-tighter line-clamp-1 border-t border-slate-100 pt-3">
                     🏆 {item.nama}
@@ -182,7 +184,8 @@ export default function AdminDashboard() {
         {/* --- PETA & KLASEMEN LIGHT --- */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="hidden lg:block lg:col-span-2 bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden h-[550px] relative shadow-sm">
-             <PetaSragen dataKlasemen={klasemen} />
+             {/* ✅ PETA SEKARANG DIPANGGIL PAKAI DATA ASLI MONGODB */}
+             <PetaSragen dataKlasemen={klasemen} dataPeserta={profilPeserta} />
              <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur px-4 py-2 rounded-full border border-slate-200 text-[10px] font-bold text-slate-600 tracking-widest uppercase shadow-sm">
                 Peta Sebaran Real-Time
              </div>
@@ -242,44 +245,82 @@ export default function AdminDashboard() {
 
         {/* --- PANEL KENDALI LIGHT --- */}
         <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 shadow-sm overflow-hidden">
-          
-          {/* Bagian Kiri: Icon & Tulisan */}
           <div className="flex items-center gap-4 md:gap-6">
-            <div className="flex-none w-14 h-14 md:w-16 md:h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-2xl md:text-3xl border border-slate-200 shadow-inner">
-              🛠️
-            </div>
+            <div className="flex-none w-14 h-14 md:w-16 md:h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-2xl md:text-3xl border border-slate-200 shadow-inner">🛠️</div>
             <div>
               <h3 className="font-black text-lg md:text-xl text-slate-800">Panel Kendali Utama</h3>
               <p className="text-xs md:text-sm text-slate-500 font-medium">Manajemen basis data dan konfigurasi sistem</p>
             </div>
           </div>
-
-          {/* Bagian Kanan: Tombol-tombol */}
           <div className="flex flex-wrap gap-3 w-full lg:w-auto">
-            <Link 
-              href="/admin/akun" 
-              className="flex-1 lg:flex-none bg-slate-900 hover:bg-black text-white font-black py-4 px-6 md:px-10 rounded-2xl transition-all active:scale-95 shadow-md uppercase text-[10px] md:text-xs tracking-widest text-center"
-            >
+            <Link href="/admin/akun" className="flex-1 lg:flex-none bg-slate-900 hover:bg-black text-white font-black py-4 px-6 md:px-10 rounded-2xl transition-all active:scale-95 shadow-md uppercase text-[10px] md:text-xs tracking-widest text-center">
                Kelola Peserta
             </Link>
-
-            <button 
-              onClick={exportToExcel} 
-              className="flex-1 lg:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 px-5 md:px-8 rounded-2xl transition-all active:scale-95 shadow-md uppercase text-[10px] md:text-xs tracking-widest flex items-center justify-center gap-2"
-            >
+            <button onClick={exportToExcel} className="flex-1 lg:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 px-5 md:px-8 rounded-2xl transition-all active:scale-95 shadow-md uppercase text-[10px] md:text-xs tracking-widest flex items-center justify-center gap-2">
                <span>📊</span> Export Excel
             </button>
-
-            <button 
-              onClick={() => fetchDashboardData(true)} 
-              className="flex-1 lg:flex-none bg-white hover:bg-slate-50 text-slate-700 font-black py-4 px-6 md:px-8 rounded-2xl transition-all uppercase text-[10px] md:text-xs tracking-widest border border-slate-200 shadow-sm"
-            >
+            <button onClick={() => fetchDashboardData(true)} className="flex-1 lg:flex-none bg-white hover:bg-slate-50 text-slate-700 font-black py-4 px-6 md:px-8 rounded-2xl transition-all uppercase text-[10px] md:text-xs tracking-widest border border-slate-200 shadow-sm">
                Refresh
             </button>
           </div>
         </div>
 
-        {/* ✅ TABEL RINCIAN KLASEMEN & JURI (VERSI TERANG) ✅ */}
+        {/* ✅ PANEL MONITORING BERKAS (BARU DITAMBAHKAN) ✅ */}
+        <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm mt-6">
+          <div className="p-8 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                <span>📁</span> Monitoring Berkas GDrive
+              </h2>
+              <p className="text-xs text-slate-500 font-medium mt-1 uppercase tracking-widest">Pantauan Bukti Fisik Peserta</p>
+            </div>
+            <div className="bg-amber-50 text-amber-700 px-4 py-2 rounded-xl text-[10px] font-black border border-amber-200 tracking-widest uppercase shadow-sm flex items-center gap-2">
+              <span className="animate-pulse">⏳</span> Data Dummy (Menunggu API)
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-white text-slate-400 font-black uppercase text-[10px] tracking-widest border-b border-slate-200">
+                <tr>
+                  <th className="py-6 px-8">Entitas Bank Sampah</th>
+                  <th className="py-6 px-4">Ketua / Direktur</th>
+                  <th className="py-6 px-6 text-center">Progres Unggah</th>
+                  <th className="py-6 px-8 text-right">Status GDrive</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {dummyBerkas.map((item, index) => (
+                  <tr key={index} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-4 px-8 font-extrabold text-slate-800">{item.namaBank}</td>
+                    <td className="py-4 px-4 font-bold text-slate-500">{item.ketua}</td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center justify-center gap-3">
+                        <div className="w-full max-w-[120px] bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full ${item.jumlah === item.total ? 'bg-emerald-500' : item.jumlah > 0 ? 'bg-amber-400' : 'bg-red-400'}`} 
+                            style={{ width: `${(item.jumlah / item.total) * 100}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-[10px] font-black text-slate-600 min-w-[40px] text-right">{item.jumlah}/{item.total}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-8 text-right">
+                      <span className={`inline-block px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${
+                        item.status === "Lengkap" ? "bg-emerald-100 text-emerald-700 border border-emerald-200" :
+                        item.status === "Belum Unggah" ? "bg-red-50 text-red-600 border border-red-100" :
+                        "bg-amber-100 text-amber-700 border border-amber-200"
+                      }`}>
+                        {item.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ✅ TABEL RINCIAN KLASEMEN & JURI (LAMA) ✅ */}
         <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm mt-6">
           <div className="p-8 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
             <div>
