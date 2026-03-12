@@ -7,17 +7,11 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const namaKategori = formData.get("namaFolder") as string;
-    const folderIdPeserta = formData.get("folderId") as string; // Ini ID folder ZigiZaga/PilihPilah
-    const namaPeserta = formData.get("namaPeserta") as string;
+    const namaPeserta = formData.get("namaPeserta") as string; // Contoh: "ZigiZaga"
 
-    // VALIDASI: Pastikan semua variabel tidak ada yang kosong
-    if (!file || !namaKategori || !folderIdPeserta) {
-      return NextResponse.json({ error: "Data pengiriman tidak lengkap (File/FolderId Kosong)!" }, { status: 400 });
+    if (!file || !namaKategori || !namaPeserta) {
+      return NextResponse.json({ error: "Data tidak lengkap!" }, { status: 400 });
     }
-
-    // KONVERSI: Mengubah file (PDF/JPG/PNG) jadi stream agar bisa dimakan GDrive
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const stream = Readable.from(buffer);
 
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
@@ -27,43 +21,59 @@ export async function POST(request: Request) {
     oauth2Client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
     const drive = google.drive({ version: "v3", auth: oauth2Client });
 
-    // 1. CARI / BUAT SUB-FOLDER KATEGORI DI DALAM FOLDER PESERTA
-    const cekFolder = await drive.files.list({
-      q: `mimeType='application/vnd.google-apps.folder' and name='${namaKategori}' and '${folderIdPeserta}' in parents and trashed=false`,
-      fields: 'files(id, name)',
+    // ID FOLDER UTAMA (Database Bank Sampah) dari .env
+    const mainFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+
+    // --- LANGKAH 1: CARI / BUAT FOLDER PESERTA (ZigiZaga) ---
+    const cekFolderPeserta = await drive.files.list({
+      q: `mimeType='application/vnd.google-apps.folder' and name='${namaPeserta}' and '${mainFolderId}' in parents and trashed=false`,
+      fields: 'files(id)',
+    });
+
+    let folderPesertaId = "";
+    if (cekFolderPeserta.data.files && cekFolderPeserta.data.files.length > 0) {
+      folderPesertaId = cekFolderPeserta.data.files[0].id!;
+    } else {
+      const buatFolderP = await drive.files.create({
+        requestBody: { name: namaPeserta, mimeType: "application/vnd.google-apps.folder", parents: [mainFolderId!] },
+        fields: "id",
+      });
+      folderPesertaId = buatFolderP.data.id!;
+    }
+
+    // --- LANGKAH 2: CARI / BUAT FOLDER KATEGORI DI DALAM FOLDER PESERTA ---
+    const cekFolderKat = await drive.files.list({
+      q: `mimeType='application/vnd.google-apps.folder' and name='${namaKategori}' and '${folderPesertaId}' in parents and trashed=false`,
+      fields: 'files(id)',
     });
 
     let targetFolderId = "";
-    if (cekFolder.data.files && cekFolder.data.files.length > 0) {
-      targetFolderId = cekFolder.data.files[0].id as string;
+    if (cekFolderKat.data.files && cekFolderKat.data.files.length > 0) {
+      targetFolderId = cekFolderKat.data.files[0].id!;
     } else {
-      const buatFolder = await drive.files.create({
-        requestBody: {
-          name: namaKategori,
-          mimeType: "application/vnd.google-apps.folder",
-          parents: [folderIdPeserta],
-        },
+      const buatFolderK = await drive.files.create({
+        requestBody: { name: namaKategori, mimeType: "application/vnd.google-apps.folder", parents: [folderPesertaId] },
         fields: "id",
       });
-      targetFolderId = buatFolder.data.id as string;
+      targetFolderId = buatFolderK.data.id!;
     }
 
-    // 2. PROSES UPLOAD (Mendukung file.type untuk PDF, JPG, PNG)
+    // --- LANGKAH 3: UPLOAD FILE KE DALAM FOLDER KATEGORI ---
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const stream = Readable.from(buffer);
+
     const response = await drive.files.create({
       requestBody: {
         name: `[${namaPeserta}] - ${file.name}`,
         parents: [targetFolderId],
       },
-      media: {
-        mimeType: file.type, 
-        body: stream,
-      },
+      media: { mimeType: file.type, body: stream },
     });
 
     return NextResponse.json({ pesan: "Berhasil!", id: response.data.id }, { status: 200 });
 
   } catch (error: any) {
-    console.error("ERROR GOOGLE DRIVE API:", error.message);
-    return NextResponse.json({ error: error.message || "Gagal upload ke Drive" }, { status: 500 });
+    console.error("DRIVE ERROR:", error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
