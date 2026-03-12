@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import ModalNotif from "@/components/ModalNotif";
 import TombolLogout from "@/components/TombolLogout";
+import Link from "next/link";
 
 export default function FormProfilPeserta() {
   const [loading, setLoading] = useState(false);
@@ -64,9 +65,31 @@ export default function FormProfilPeserta() {
     <main className="min-h-screen bg-slate-50 pb-16 pt-[100px] px-4">
       <ModalNotif isOpen={modal.isOpen} type={modal.type as any} title={modal.title} message={modal.message} onClose={() => setModal({ ...modal, isOpen: false })} />
       
-      <header className="bg-white border-b border-slate-200 px-8 h-[80px] flex justify-between items-center fixed top-0 left-0 w-full z-[9999] shadow-sm">
-        <h1 className="text-xl font-black text-slate-800">Profil <span className="text-emerald-600">Bank Sampah</span></h1>
-        <TombolLogout />
+      <header className="bg-white border-b border-slate-200 px-4 sm:px-8 h-[80px] flex justify-between items-center fixed top-0 left-0 w-full z-[9999] shadow-sm box-border">
+        <div className="flex items-center gap-4">
+          {/* --- TOMBOL KEMBALI --- */}
+          <Link 
+            href="/peserta" 
+            className="w-10 h-10 bg-slate-50 text-slate-500 rounded-xl flex items-center justify-center border border-slate-200 hover:bg-slate-100 transition-all active:scale-90"
+            title="Kembali ke Dashboard"
+          >
+            <span className="text-xl">←</span>
+          </Link>
+
+          <div className="flex flex-col justify-center min-w-0">
+            <h1 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight leading-none truncate">
+              {/* Sesuaikan Judulnya: Profil / Dokumen Bukti */}
+              Lengkapi <span className="text-emerald-600">Profil</span>
+            </h1>
+            <p className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1.5 leading-none truncate">
+              Monitoring Bank Sampah 2026
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0">
+          <TombolLogout />
+        </div>
       </header>
 
       <div className="max-w-2xl mx-auto bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-200 mt-8">
