@@ -6,21 +6,21 @@ import Link from "next/link";
 import ModalNotif from "@/components/ModalNotif";
 import TombolLogout from "@/components/TombolLogout";
 import * as XLSX from "xlsx";
-import React from "react"; // Tambahkan ini untuk React.Fragment
+import React from "react"; 
 
 const PetaSragen = dynamic(() => import("@/components/PetaSragen"), { 
   ssr: false,
   loading: () => <div className="flex items-center justify-center h-full text-slate-400 font-bold uppercase tracking-tighter text-xs">Memuat Peta...</div>
 });
 
-// 🔒 DEFINISI TYPE BIAR TYPESCRIPT GAK REWEL
+// 🔒 DEFINISI TYPE
 interface StatsType {
   totalPeserta: number;
   sudahDinilai: number;
   tertinggi: string | { skor: string; nama: string };
 }
 
-// 📦 DAFTAR BERKAS UNTUK RENDER TOMBOL PREVIEW
+// 📦 DAFTAR BERKAS 
 const DAFTAR_BERKAS = [
   { kategori: "Kat. I: Pengelolaan Sampah", items: [ { id: "Kat. I No. 1", label: "Laporan hasil penimbangan" }, { id: "Kat. I No. 2", label: "SK, Laporan Nasabah, KK RT/RW" }, { id: "Kat. I No. 3", label: "Laporan kegiatan tiap penimbangan" }, { id: "Kat. I No. 4", label: "Nasabah, neraca, buku tamu" }, { id: "Kat. I No. 5", label: "Dokumentasi kegiatan/buku" }, { id: "Kat. I No. 6", label: "Pencatatan sampah organik" }, { id: "Kat. I No. 7", label: "Surat pengantar/Screenshot" } ] },
   { kategori: "Kat. II: Fasilitas & Infrastruktur", items: [ { id: "Kat. II No. 1", label: "Ruang Pelayanan" }, { id: "Kat. II No. 2", label: "Area Penyimpanan" }, { id: "Kat. II No. 3", label: "Peralatan" }, { id: "Kat. II No. 4", label: "Kebersihan & Keamanan" } ] },
@@ -32,27 +32,21 @@ const DAFTAR_BERKAS = [
 export default function AdminDashboard() {
   const [klasemen, setKlasemen] = useState<any[]>([]);
   const [profilPeserta, setProfilPeserta] = useState<any[]>([]);
-  
   const [dataMonitoring, setDataMonitoring] = useState<any[]>([]);
   const [loadingDrive, setLoadingDrive] = useState(true);
 
-  // ✅ STATE BARU: Fitur Expand Baris & Lihat Berkas
+  // ✅ STATE: Expand Baris
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [berkasLinks, setBerkasLinks] = useState<Record<string, string>>({});
   const [loadingLinks, setLoadingLinks] = useState(false);
 
-  const [stats, setStats] = useState<StatsType>({ 
-    totalPeserta: 0, 
-    sudahDinilai: 0, 
-    tertinggi: "-" 
-  });
+  const [stats, setStats] = useState<StatsType>({ totalPeserta: 0, sudahDinilai: 0, tertinggi: "-" });
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState({ isOpen: false, type: "", title: "", message: "" });
   
   const prevKlasemenRef = useRef<any[]>([]);
   const [changedIds, setChangedIds] = useState<string[]>([]);
 
-  // 📥 FUNGSI FETCH UTAMA
   const fetchDashboardData = async (isManual = false) => {
     try {
       if (isManual) setLoadingDrive(true);
@@ -86,12 +80,11 @@ export default function AdminDashboard() {
     } catch (err) { 
       console.error("Gagal refresh data"); 
     } finally { 
-      setLoading(false); 
-      setLoadingDrive(false);
+      setLoading(false); setLoadingDrive(false);
     }
   };
 
-  const exportToExcel = () => { /* Logic Tetap Sama */ };
+  const exportToExcel = () => { /* Excel Logic */ };
 
   useEffect(() => {
     fetchDashboardData();
@@ -99,7 +92,6 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // 🟢 FUNGSI BARU: Ambil Link Berkas saat Baris Diklik
   const handleExpandRow = async (namaInstansi: string) => {
     if (expandedRow === namaInstansi) {
       setExpandedRow(null); 
@@ -125,7 +117,6 @@ export default function AdminDashboard() {
     <main className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-16 pt-[100px] relative">
       <ModalNotif isOpen={modal.isOpen} type={modal.type as any} title={modal.title} message={modal.message} onClose={() => setModal({ ...modal, isOpen: false })} />
 
-      {/* --- HEADER BAJA ANTI-PENYOK --- */}
       <header className="bg-white border-b border-slate-200 px-4 sm:px-8 h-[80px] flex justify-between items-center fixed top-0 left-0 w-full z-[9999] shadow-sm box-border">
         <div className="flex flex-col justify-center">
           <h1 className="text-lg sm:text-xl font-black text-slate-800 tracking-tight leading-none">
@@ -176,9 +167,7 @@ export default function AdminDashboard() {
                     🏆 {item.nama}
                   </p>
                 ) : (
-                  <p className="text-[9px] font-bold text-slate-400 mt-3 uppercase tracking-tight">
-                    {item.sub}
-                  </p>
+                  <p className="text-[9px] font-bold text-slate-400 mt-3 uppercase tracking-tight">{item.sub}</p>
                 )}
               </div>
             ));
@@ -224,8 +213,7 @@ export default function AdminDashboard() {
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${
                             index === 0 ? "bg-amber-400 text-white shadow-inner" : 
                             index === 1 ? "bg-slate-300 text-slate-700" : 
-                            index === 2 ? "bg-orange-400 text-white" : 
-                            "bg-slate-100 text-slate-400"
+                            index === 2 ? "bg-orange-400 text-white" : "bg-slate-100 text-slate-400"
                           }`}>{index + 1}</div>
                           <div>
                             <h3 className="font-black text-sm text-slate-800">{kec.namaInstansi}</h3>
@@ -268,7 +256,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* ✅ PANEL MONITORING BERKAS (BISA DI-EXPAND) ✅ */}
+        {/* ✅ PANEL MONITORING BERKAS (BISA DI-EXPAND DENGAN TOMBOL SIMPLE) ✅ */}
         <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm mt-6">
           <div className="p-8 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
@@ -308,7 +296,6 @@ export default function AdminDashboard() {
 
                   return (
                     <React.Fragment key={index}>
-                      {/* BARIS UTAMA BISA DI KLIK */}
                       <tr 
                         onClick={() => handleExpandRow(item.namaInstansi)}
                         className={`transition-colors cursor-pointer group ${isExpanded ? 'bg-slate-50' : 'hover:bg-slate-50/50'}`}
@@ -340,43 +327,40 @@ export default function AdminDashboard() {
                         </td>
                       </tr>
 
-                      {/* 🟢 BARIS EXPAND: TAMPILAN TOMBOL PREVIEW BERKAS */}
+                      {/* 🟢 BARIS EXPAND: TAMPILAN TOMBOL BUTTON SIMPLE KEKINIAN */}
                       {isExpanded && (
-                        <tr className="bg-slate-50 border-b border-slate-200 shadow-inner">
-                          <td colSpan={4} className="p-4 md:p-8">
+                        <tr className="bg-slate-50/80 border-b border-slate-200 shadow-inner">
+                          <td colSpan={4} className="p-6 md:p-8">
                             {loadingLinks ? (
-                              <div className="flex justify-center items-center py-10 opacity-60 animate-pulse">
+                              <div className="flex justify-center items-center py-6 opacity-60 animate-pulse">
                                 <span className="font-bold text-emerald-600 text-xs tracking-widest uppercase">Membuka Laci Google Drive... 🔍</span>
                               </div>
                             ) : (
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-                                {DAFTAR_BERKAS.map((kat, i) => (
-                                  <div key={i} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                                    <h4 className="font-black text-[10px] text-slate-400 mb-3 uppercase tracking-widest border-b border-slate-100 pb-2">{kat.kategori}</h4>
-                                    <div className="space-y-2">
-                                      {kat.items.map(syarat => {
-                                        const link = berkasLinks[syarat.id];
-                                        return (
-                                          <div key={syarat.id} className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-2 p-2 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200">
-                                            <span className="text-[10px] font-bold text-slate-600 leading-tight w-full truncate" title={syarat.label}>
-                                              <span className="text-slate-400 mr-1">{syarat.id}</span>
-                                              <br className="hidden xl:block"/>{syarat.label}
-                                            </span>
-                                            {link ? (
-                                              <a href={link} target="_blank" rel="noreferrer" className="flex-none text-[9px] bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-md font-black uppercase hover:bg-blue-600 hover:text-white transition-all shadow-sm text-center w-full xl:w-auto">
-                                                👁️ Buka
-                                              </a>
-                                            ) : (
-                                              <span className="flex-none text-[9px] bg-slate-200 text-slate-400 px-3 py-1.5 rounded-md font-bold uppercase text-center w-full xl:w-auto cursor-not-allowed">
-                                                Kosong
-                                              </span>
-                                            )}
-                                          </div>
-                                        )
-                                      })}
-                                    </div>
-                                  </div>
-                                ))}
+                              <div className="flex flex-wrap gap-3">
+                                {DAFTAR_BERKAS.flatMap(kat => kat.items).map(syarat => {
+                                  const link = berkasLinks[syarat.id];
+                                  
+                                  return link ? (
+                                    <a 
+                                      key={syarat.id} 
+                                      href={link} 
+                                      target="_blank" 
+                                      rel="noreferrer"
+                                      title={syarat.label} // 💡 Tooltip Rahasia!
+                                      className="flex items-center gap-2 px-4 py-3 bg-white text-blue-600 border border-blue-200 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-sm active:scale-95"
+                                    >
+                                      <span>👁️</span> {syarat.id}
+                                    </a>
+                                  ) : (
+                                    <span 
+                                      key={syarat.id} 
+                                      title={`Belum Upload: ${syarat.label}`} // 💡 Tooltip Rahasia!
+                                      className="flex items-center gap-2 px-4 py-3 bg-slate-100 text-slate-400 border border-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-widest cursor-not-allowed opacity-70"
+                                    >
+                                      <span>🔒</span> {syarat.id}
+                                    </span>
+                                  );
+                                })}
                               </div>
                             )}
                           </td>
