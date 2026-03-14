@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import ModalNotif from "@/components/ModalNotif"; 
 import TombolLogout from "@/components/TombolLogout";
-import ThemeToggle from "@/components/ThemeToggle"; // 👈 Tambah ini
+import ThemeToggle from "@/components/ThemeToggle"; 
 import Link from "next/link";
 import React from "react";
 
@@ -31,39 +31,27 @@ export default function FormUploadPeserta() {
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
-      fetchExistingFiles(parsedUser.namaInstansi || parsedUser.username);
+      fetchSyncData(parsedUser.namaInstansi || parsedUser.username);
     }
-
-    const cekDeadline = async () => {
-      try {
-        const res = await fetch("/api/pengaturan");
-        if (res.ok) {
-          const data = await res.json();
-          if (data.deadline) {
-            const tglBatas = new Date(data.deadline);
-            const tglSekarang = new Date();
-            const formatter = new Intl.DateTimeFormat('id-ID', { dateStyle: 'full', timeStyle: 'short' });
-            setTeksDeadline(`Batas Waktu: ${formatter.format(tglBatas)} WIB`);
-            if (tglSekarang > tglBatas) setIsWaktuHabis(true);
-          } else {
-            setTeksDeadline("Batas Waktu Belum Ditentukan");
-          }
-        }
-      } catch (err) { setTeksDeadline("Gagal memuat batas waktu"); }
-    };
-    cekDeadline();
   }, []);
 
-  const fetchExistingFiles = async (namaPeserta: string) => {
-    if (!namaPeserta) return;
+  const fetchSyncData = async (namaPeserta: string) => {
     try {
-      const res = await fetch("/api/peserta/cek-berkas", {
-        method: "POST",
-        body: JSON.stringify({ namaPeserta: namaPeserta }),
-      });
-      const data = await res.json();
-      if (data.berkasTerisi) setSudahAdaDiDrive(data.berkasTerisi);
-    } catch (err) { console.error("Gagal cek berkas:", err); }
+      const resDrive = await fetch("/api/peserta/cek-berkas", { method: "POST", body: JSON.stringify({ namaPeserta }) });
+      const dataD = await resDrive.json();
+      if (dataD.berkasTerisi) setSudahAdaDiDrive(dataD.berkasTerisi);
+
+      const resTime = await fetch("/api/pengaturan");
+      const dataT = await resTime.json();
+      if (dataT.deadline) {
+        const tglBatas = new Date(dataT.deadline);
+        const formatter = new Intl.DateTimeFormat('id-ID', { dateStyle: 'full', timeStyle: 'short' });
+        setTeksDeadline(`Batas Waktu: ${formatter.format(tglBatas)} WIB`);
+        if (new Date() > tglBatas) setIsWaktuHabis(true);
+      } else {
+        setTeksDeadline("Batas Waktu Belum Ditentukan");
+      }
+    } catch (err) { console.error("Sync Error"); }
   };
 
   const totalSyarat = DAFTAR_BERKAS.reduce((total, kat) => total + kat.items.length, 0);
@@ -72,6 +60,8 @@ export default function FormUploadPeserta() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, idBerkas: string) => {
     if (isWaktuHabis) return setModal({ isOpen: true, type: "error", title: "Waktu Habis", message: "Batas waktu pengunggahan telah ditutup." });
+    if (sudahAdaDiDrive[idBerkas]) return; 
+
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (file.size > 5 * 1024 * 1024) return setModal({ isOpen: true, type: "error", title: "Terlalu Besar", message: "Maksimal file 5 MB." });
@@ -80,7 +70,7 @@ export default function FormUploadPeserta() {
   };
 
   const handleSubmit = async () => {
-    if (isWaktuHabis) return;
+    if (isWaktuHabis || Object.keys(files).length === 0) return;
     setLoading(true);
     let count = 0;
     try {
@@ -90,8 +80,8 @@ export default function FormUploadPeserta() {
         const res = await fetch("/api/peserta/upload-gdrive", { method: "POST", body: fd });
         if (!res.ok) throw new Error("Gagal upload.");
       }
-      setModal({ isOpen: true, type: "success", title: "Berhasil!", message: "Dokumen berhasil disetor & dikunci." });
-      await fetchExistingFiles(user.namaInstansi || user.username);
+      setModal({ isOpen: true, type: "success", title: "Berhasil!", message: "Dokumen berhasil disetor & dikunci secara otomatis." });
+      await fetchSyncData(user.namaInstansi || user.username);
       setFiles({});
     } catch (e: any) { setModal({ isOpen: true, type: "error", title: "Gagal", message: e.message }); }
     finally { setLoading(false); setUploadIndex(0); }
@@ -101,13 +91,12 @@ export default function FormUploadPeserta() {
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-24 pt-[100px] transition-colors duration-300">
       <ModalNotif isOpen={modal.isOpen} type={modal.type as any} title={modal.title} message={modal.message} onClose={() => setModal({...modal, isOpen: false})} />
 
-      {/* --- HEADER --- */}
       <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 h-[80px] flex justify-between items-center fixed top-0 left-0 w-full z-[9999] shadow-sm">
         <div className="flex items-center gap-4">
-          <Link href="/peserta" className="w-10 h-10 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl flex items-center justify-center border border-slate-200 dark:border-slate-700 hover:bg-slate-100">←</Link>
+          <Link href="/peserta" className="w-10 h-10 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl flex items-center justify-center border border-slate-200 dark:border-slate-700 hover:bg-slate-100 transition-all">←</Link>
           <div className="flex flex-col">
-            <h1 className="text-lg font-black dark:text-white leading-none">Setor <span className="text-emerald-600">Dokumen</span></h1>
-            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Bank Sampah 2026</p>
+            <h1 className="text-lg font-black dark:text-white leading-none">Pendaftaran <span className="text-emerald-600">Berkas</span></h1>
+            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Lomba Bank Sampah 2026</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -125,7 +114,6 @@ export default function FormUploadPeserta() {
           </div>
         )}
 
-        {/* INFO CARD */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] shadow-sm border border-slate-200 dark:border-slate-800 text-center relative overflow-hidden transition-colors">
           <div className={`absolute top-0 right-0 font-black text-[9px] px-4 py-2 rounded-bl-2xl border-b border-l uppercase tracking-widest ${isWaktuHabis ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400 border-red-200' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 border-emerald-200'}`}>
              {isWaktuHabis ? 'Akses Ditutup' : 'Mode Setor'}
@@ -160,44 +148,40 @@ export default function FormUploadPeserta() {
                 {kategori.items.map((item) => {
                   const linkDrive = sudahAdaDiDrive[item.id]; 
                   const exists = !!linkDrive;
-                  const selected = !!files[item.id];
+                  const isSelected = !!files[item.id];
 
                   return (
-                    <div key={item.id} className={`p-5 rounded-2xl border-2 transition-all ${exists ? 'border-emerald-200 dark:border-emerald-900/50 bg-slate-50/50 dark:bg-slate-800/20' : selected ? 'border-amber-200 bg-amber-50/30 dark:bg-amber-900/10' : 'border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
+                    <div key={item.id} className={`p-5 rounded-2xl border-2 transition-all ${exists ? 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 opacity-60 grayscale' : isSelected ? 'border-emerald-500 bg-emerald-50/10' : 'border-slate-100 dark:border-slate-800 border-dashed'}`}>
                       <div className="flex flex-col lg:flex-row justify-between gap-4">
                         <div className="flex-1">
-                          <h4 className={`font-bold text-sm flex gap-2 leading-tight ${exists ? 'text-slate-500' : 'dark:text-slate-200'}`}>
-                            <span>{exists ? "🔒" : selected ? "⏳" : "⚠️"}</span> {item.label}
+                          <h4 className={`font-bold text-sm flex gap-2 leading-tight ${exists ? 'text-slate-400' : 'dark:text-slate-200'}`}>
+                            <span>{exists ? "🔒" : isSelected ? "⏳" : "📄"}</span> {item.label}
                           </h4>
                           <div className="flex flex-wrap gap-2 mt-2">
                             <span className="text-[9px] font-black bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-1 rounded-md uppercase">{item.id}</span>
-                            <span className="text-[9px] font-black bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-md uppercase">Format: {item.format}</span>
-                            {exists && <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 px-2 py-1 rounded-md uppercase">Sudah Disetor</span>}
+                            {exists && <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 px-2 py-1 rounded-md uppercase">Tersimpan</span>}
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-2">
                           {exists ? (
-                            <>
-                              <a href={linkDrive} target="_blank" rel="noreferrer" className="bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50 px-4 py-3 rounded-xl font-black text-[10px] uppercase shadow-sm">👁️ Lihat</a>
-                              <div className="bg-slate-100 dark:bg-slate-800/50 text-slate-400 dark:text-slate-600 border border-slate-200 dark:border-slate-700 px-6 py-3 rounded-xl font-black text-[10px] uppercase cursor-not-allowed flex items-center gap-2">🔒 Terkunci</div>
-                            </>
+                            <div className="bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 px-6 py-3 rounded-xl font-black text-[10px] uppercase cursor-not-allowed border dark:border-slate-700 shadow-inner">🔒 Terkunci</div>
                           ) : isWaktuHabis ? (
-                             <div className="bg-red-50 dark:bg-red-900/20 text-red-400 dark:text-red-600 border border-red-200 dark:border-red-900/50 px-6 py-3 rounded-xl font-black text-[10px] uppercase cursor-not-allowed flex items-center gap-2">⏳ Waktu Habis</div>
+                             <div className="bg-red-50 dark:bg-red-900/20 text-red-400 dark:text-red-600 border border-red-200 dark:border-red-900/50 px-6 py-3 rounded-xl font-black text-[10px] uppercase cursor-not-allowed">Habis</div>
                           ) : (
                             <>
-                              {selected && <button onClick={() => { const nf = {...files}; delete nf[item.id]; setFiles(nf); }} className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-4 py-3 rounded-xl font-black text-[10px] uppercase shadow-sm">Batal</button>}
+                              {isSelected && <button onClick={() => { const nf = {...files}; delete nf[item.id]; setFiles(nf); }} className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-4 py-3 rounded-xl font-black text-[10px] uppercase shadow-sm">Batal</button>}
                               <div className="relative">
-                                <input type="file" id={`f-${item.id}`} className="hidden" onChange={(e) => handleFileChange(e, item.id)} disabled={loading || isWaktuHabis} accept={item.format.includes('.pdf') && item.format.includes('.jpg') ? ".pdf,.jpg,.jpeg,.png" : item.format.includes('.pdf') ? ".pdf" : ".jpg,.jpeg,.png"} />
-                                <label htmlFor={`f-${item.id}`} className={`cursor-pointer font-black py-3 px-6 rounded-xl border text-[10px] uppercase transition-all shadow-sm block text-center ${selected ? 'bg-amber-400 text-white border-amber-500' : 'bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-black dark:hover:bg-white'}`}>
-                                  {selected ? "Siap Kirim" : "Pilih File"}
+                                <input type="file" id={`up-${item.id}`} className="hidden" onChange={(e) => handleFileChange(e, item.id)} disabled={loading || isWaktuHabis} accept=".pdf,.jpg,.jpeg,.png" />
+                                <label htmlFor={`up-${item.id}`} className={`cursor-pointer font-black py-3 px-6 rounded-xl border text-[10px] uppercase transition-all shadow-sm block text-center ${isSelected ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:scale-[1.02]'}`}>
+                                  {isSelected ? "Siap Kirim" : "Pilih File"}
                                 </label>
                               </div>
                             </>
                           )}
                         </div>
                       </div>
-                      {selected && !exists && <p className="mt-3 text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 rounded-lg border border-amber-100 dark:border-amber-800 inline-block">📎 File: {files[item.id].name}</p>}
+                      {isSelected && !exists && <p className="mt-3 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">📎 {files[item.id].name}</p>}
                     </div>
                   );
                 })}
@@ -207,19 +191,14 @@ export default function FormUploadPeserta() {
         </div>
       </div>
 
-      {/* FOOTER BUTTON */}
       {!isWaktuHabis && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t dark:border-slate-800 p-5 shadow-[0_-15px_30px_rgba(0,0,0,0.05)] flex justify-between items-center px-4 md:px-8 z-[999]">
-          <div className="hidden sm:block">
-            <p className="text-[10px] font-bold text-slate-400 uppercase">Total Syarat</p>
-            <p className="text-xl font-black dark:text-white">{totalTerpenuhi} <span className="text-slate-300 dark:text-slate-600 text-sm">/ {totalSyarat}</span></p>
-          </div>
+        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t dark:border-slate-800 p-5 shadow-[0_-15px_30px_rgba(0,0,0,0.1)] z-50 flex justify-center px-4">
           <button 
             onClick={handleSubmit} 
             disabled={loading || Object.keys(files).length === 0} 
-            className={`w-full sm:w-auto font-black py-4 px-10 rounded-2xl shadow-lg uppercase text-[10px] tracking-widest transition-all ${loading ? 'bg-amber-500 text-white' : Object.keys(files).length === 0 ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
+            className={`w-full max-w-md font-black py-4 rounded-2xl shadow-lg uppercase text-[10px] tracking-[0.2em] transition-all ${loading ? 'bg-amber-50 text-white' : Object.keys(files).length === 0 ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed' : 'bg-emerald-600 text-white hover:scale-[1.02] active:scale-95'}`}
           >
-            {loading ? `⏳ MENGUNGGAH ${uploadIndex}...` : Object.keys(files).length === 0 ? "PILIH FILE" : "🚀 KIRIM DOKUMEN"}
+            {loading ? `⏳ MENGUNGGAH KE-${uploadIndex}...` : "🚀 SETOR DOKUMEN SEKARANG"}
           </button>
         </div>
       )}
