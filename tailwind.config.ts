@@ -1,8 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  // 🟢 INI KUNCI RAHASIANYA! 
-  // Biar Tailwind tahu kita mau kontrol dark mode manual lewat tombol
+  // 🟢 INI KUNCINYA! Tanpa ini, Tailwind nggak akan ganti warna pas class "dark" ada/hilang
   darkMode: "class", 
   
   content: [
