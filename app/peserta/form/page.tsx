@@ -12,9 +12,10 @@ export default function FormProfilPeserta() {
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, type: "", title: "", message: "" });
   
-  // State Form
+  // ✅ STATE FORM (Nomor Telepon Sudah Kembali!)
   const [formData, setFormData] = useState({
     namaKetua: "",
+    noTelepon: "", // 👈 Ini dia yang tadi ngilang hehe
     tahunBerdiri: "",
     alamat: "",
     latitude: "",
@@ -34,7 +35,6 @@ export default function FormProfilPeserta() {
 
   const fetchProfil = async (username: string) => {
     try {
-      // Sesuaikan endpoint API ini dengan milikmu
       const res = await fetch(`/api/peserta/profil?username=${username}`);
       if (res.ok) {
         const data = await res.json();
@@ -101,27 +101,39 @@ export default function FormProfilPeserta() {
         <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 p-6 md:p-10 rounded-[2.5rem] shadow-sm border border-slate-200 dark:border-slate-800 space-y-6 transition-colors">
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* NAMA BANK SAMPAH (FULL) */}
             <div className="space-y-2 md:col-span-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nama Bank Sampah (Terkunci)</label>
               <input type="text" disabled value={user?.namaInstansi || ""} className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 px-5 py-4 rounded-2xl font-bold cursor-not-allowed" />
             </div>
 
+            {/* NAMA KETUA (SEPARUH) */}
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Nama Ketua / Direktur</label>
               <input required type="text" value={formData.namaKetua} onChange={(e) => setFormData({...formData, namaKetua: e.target.value})} className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 px-5 py-4 rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all" placeholder="Contoh: Budi Santoso" />
             </div>
 
+            {/* NOMOR TELEPON (SEPARUH) ✅ */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Nomor Telepon (WA)</label>
+              <input required type="tel" value={formData.noTelepon} onChange={(e) => setFormData({...formData, noTelepon: e.target.value})} className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 px-5 py-4 rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all" placeholder="Contoh: 081234567890" />
+            </div>
+
+            {/* TAHUN BERDIRI (SEPARUH) */}
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Tahun Berdiri</label>
               <input required type="number" value={formData.tahunBerdiri} onChange={(e) => setFormData({...formData, tahunBerdiri: e.target.value})} className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 px-5 py-4 rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all" placeholder="Contoh: 2021" />
             </div>
 
+            {/* ALAMAT (FULL) */}
             <div className="space-y-2 md:col-span-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Alamat Lengkap</label>
               <textarea required rows={3} value={formData.alamat} onChange={(e) => setFormData({...formData, alamat: e.target.value})} className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 px-5 py-4 rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all" placeholder="Contoh: Jl. Raya Sukowati No. 12, RT 01/RW 02..." />
             </div>
           </div>
 
+          {/* KORDINAT GPS */}
           <div className="p-6 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-3xl space-y-4">
              <div>
                 <h3 className="font-black text-blue-800 dark:text-blue-400">Penguncian Koordinat GPS</h3>
