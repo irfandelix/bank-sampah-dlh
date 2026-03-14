@@ -1,12 +1,13 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ThemeToggle from "./ThemeToggle";
 import TombolLogout from "./TombolLogout";
 
 export default function HeaderGlobal() {
   const pathname = usePathname();
+  const router = useRouter(); // 👈 Tambahan untuk fungsi Back
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -17,7 +18,14 @@ export default function HeaderGlobal() {
   // 1️⃣ SEMBUNYIKAN HEADER DI HALAMAN LOGIN
   if (pathname === "/") return null;
 
-  // 2️⃣ LOGIKA DINAMIS BERDASARKAN URL
+  // 2️⃣ LOGIKA DETEKSI HALAMAN SUB/ANAK (Untuk Munculin Tombol Back)
+  // Tombol Back muncul kalau URL BUKAN halaman utama masing-masing role
+  const isSubPage = 
+    (pathname.startsWith("/admin") && pathname !== "/admin/dashboard" && pathname !== "/admin") ||
+    (pathname.startsWith("/peserta") && pathname !== "/peserta") ||
+    (pathname.startsWith("/juri") && pathname !== "/juri");
+
+  // 3️⃣ LOGIKA DINAMIS BERDASARKAN URL
   let title = "Dashboard";
   let titleColor = "text-slate-800";
   let subtitle = "Sistem Monitoring";
@@ -54,15 +62,31 @@ export default function HeaderGlobal() {
 
   return (
     <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 h-[70px] md:h-[80px] flex justify-between items-center fixed top-0 left-0 w-full z-[9999] shadow-sm box-border transition-colors">
-      <div className="flex flex-col justify-center min-w-0 mr-2">
-        <h1 className="text-base sm:text-xl font-black text-slate-800 dark:text-white tracking-tight leading-none truncate">
-          {title.split(" ")[0]} <span className={titleColor}>{title.split(" ")[1] || ""}</span>
-        </h1>
-        <p className="text-[8px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mt-1.5 leading-none truncate">
-          {subtitle}
-        </p>
+      
+      {/* --- KIRI: TOMBOL BACK (JIKA ADA) + JUDUL --- */}
+      <div className="flex items-center gap-3 sm:gap-4 min-w-0 mr-2">
+        {/* 🟢 TOMBOL KEMBALI MUNCUL OTOMATIS */}
+        {isSubPage && (
+          <button 
+            onClick={() => router.back()} 
+            className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg sm:rounded-xl flex items-center justify-center border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 transition-all shrink-0 shadow-sm"
+            title="Kembali"
+          >
+            ←
+          </button>
+        )}
+
+        <div className="flex flex-col justify-center min-w-0">
+          <h1 className="text-base sm:text-xl font-black text-slate-800 dark:text-white tracking-tight leading-none truncate">
+            {title.split(" ")[0]} <span className={titleColor}>{title.split(" ")[1] || ""}</span>
+          </h1>
+          <p className="text-[8px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mt-1.5 leading-none truncate">
+            {subtitle}
+          </p>
+        </div>
       </div>
       
+      {/* --- KANAN: SAKLAR, LOGOUT, & PROFIL --- */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         <ThemeToggle />
         <TombolLogout />
@@ -80,6 +104,7 @@ export default function HeaderGlobal() {
           </div>
         </div>
       </div>
+
     </header>
   );
 }
