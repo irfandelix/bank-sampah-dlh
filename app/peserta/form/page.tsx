@@ -91,7 +91,6 @@ export default function FormProfilPeserta() {
         
         {/* Navigasi Kembali */}
         <div className="flex items-center gap-4">
-          <Link href="/peserta" className="w-10 h-10 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 rounded-xl flex items-center justify-center border border-slate-200 dark:border-slate-800 shadow-sm hover:bg-slate-50 transition-all">←</Link>
           <div>
             <h2 className="text-xl font-black text-slate-800 dark:text-white leading-none">Profil Identitas</h2>
             <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mt-1">Lengkapi Data Bank Sampah</p>
