@@ -5,40 +5,47 @@ export async function POST(req: Request) {
   try {
     const { namaPeserta, namaFolder } = await req.json();
 
-    // 🛑 VALIDASI AWAL (Penyebab Error 400)
+    // 1. Validasi Input
     if (!namaPeserta || !namaFolder) {
       return NextResponse.json({ error: "Data tidak lengkap" }, { status: 400 });
     }
 
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      },
-      scopes: ["https://www.googleapis.com/auth/drive"], // 👈 Pastikan scope-nya full 'drive'
+    // 2. Setup OAuth2 Client (Sesuai ENV kamu)
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET
+    );
+
+    oauth2Client.setCredentials({
+      refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
     });
 
-    const drive = google.drive({ version: "v3", auth });
+    const drive = google.drive({ version: "v3", auth: oauth2Client });
 
-    // 1. Cari folder peserta
+    // 3. Cari Folder Utama Peserta (Contoh: "Bank Sampah Zigi Zaga")
+    // Kita cari di dalam Parent Folder ID yang kamu punya di env
     const folderPeserta = await drive.files.list({
-      q: `name = '${namaPeserta}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+      q: `name = '${namaPeserta}' and '${process.env.GOOGLE_DRIVE_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
       fields: "files(id)",
     });
 
     const parentId = folderPeserta.data.files?.[0]?.id;
-    if (!parentId) return NextResponse.json({ error: "Folder peserta tidak ditemukan" }, { status: 404 });
+    if (!parentId) {
+      return NextResponse.json({ error: "Folder utama peserta tidak ditemukan" }, { status: 404 });
+    }
 
-    // 2. Cari subfolder (id berkas, misal: Kat. I No. 1)
+    // 4. Cari Subfolder Berkas (Contoh: "Kat. I No. 1")
     const subFolder = await drive.files.list({
       q: `name = '${namaFolder}' and '${parentId}' in parents and trashed = false`,
       fields: "files(id)",
     });
 
     const targetFolderId = subFolder.data.files?.[0]?.id;
-    if (!targetFolderId) return NextResponse.json({ error: "Folder berkas tidak ditemukan" }, { status: 404 });
+    if (!targetFolderId) {
+      return NextResponse.json({ error: "Folder kategori berkas tidak ditemukan" }, { status: 404 });
+    }
 
-    // 3. Cari file di dalam subfolder tersebut
+    // 5. Cari Semua File di dalam Subfolder tersebut
     const listFile = await drive.files.list({
       q: `'${targetFolderId}' in parents and trashed = false`,
       fields: "files(id, name)",
@@ -46,16 +53,21 @@ export async function POST(req: Request) {
 
     const files = listFile.data.files || [];
 
-    // 4. Hapus semua file yang ada di folder tersebut
+    // 6. Eksekusi Penghapusan
     if (files.length > 0) {
       for (const file of files) {
         await drive.files.delete({ fileId: file.id! });
       }
+      return NextResponse.json({ message: `Berhasil menghapus ${files.length} file.` });
+    } else {
+      return NextResponse.json({ message: "Folder sudah kosong." });
     }
 
-    return NextResponse.json({ message: "Berkas berhasil dihapus" });
   } catch (error: any) {
     console.error("DRIVE_DELETE_ERROR:", error.message);
-    return NextResponse.json({ error: "Gagal menghapus file di Drive" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal hapus: " + (error.response?.data?.error_description || error.message) }, 
+      { status: 500 }
+    );
   }
 }
