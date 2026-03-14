@@ -10,7 +10,6 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 export const metadata: Metadata = {
   title: "Command Center DLH | Bank Sampah 2026",
   description: "Sistem Monitoring & Penilaian Bank Sampah Kabupaten Sragen",
-  icons: { icon: "/waste.ico", apple: "/waste.ico" },
 };
 
 export const viewport: Viewport = {
