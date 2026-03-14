@@ -1,53 +1,61 @@
-import { NextResponse } from "next/server";
 import { google } from "googleapis";
+import { NextResponse } from "next/server";
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
-    const { namaPeserta, namaKategori } = await request.json();
+    const { namaPeserta, namaFolder } = await req.json();
 
-    if (!namaPeserta || !namaKategori) {
-      return NextResponse.json({ error: "Data kurang" }, { status: 400 });
+    // 🛑 VALIDASI AWAL (Penyebab Error 400)
+    if (!namaPeserta || !namaFolder) {
+      return NextResponse.json({ error: "Data tidak lengkap" }, { status: 400 });
     }
 
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET
-    );
-    oauth2Client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
-    const drive = google.drive({ version: "v3", auth: oauth2Client });
-    const mainFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
-
-    // 1. Cari Folder Peserta
-    const cekFolderPeserta = await drive.files.list({
-      q: `mimeType='application/vnd.google-apps.folder' and name='${namaPeserta}' and '${mainFolderId}' in parents and trashed=false`,
-      fields: 'files(id)'
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      },
+      scopes: ["https://www.googleapis.com/auth/drive"], // 👈 Pastikan scope-nya full 'drive'
     });
-    if (!cekFolderPeserta.data.files || cekFolderPeserta.data.files.length === 0) return NextResponse.json({ pesan: "Aman" });
-    const folderPesertaId = cekFolderPeserta.data.files[0].id;
 
-    // 2. Cari Folder Kategori
-    const cekFolderKat = await drive.files.list({
-      q: `mimeType='application/vnd.google-apps.folder' and name='${namaKategori}' and '${folderPesertaId}' in parents and trashed=false`,
-      fields: 'files(id)'
-    });
-    if (!cekFolderKat.data.files || cekFolderKat.data.files.length === 0) return NextResponse.json({ pesan: "Aman" });
-    const targetFolderId = cekFolderKat.data.files[0].id;
+    const drive = google.drive({ version: "v3", auth });
 
-    // 3. Masukkan semua file di laci kategori itu ke tong sampah (Trash)
-    const fileLama = await drive.files.list({
-      q: `'${targetFolderId}' in parents and trashed=false`,
-      fields: 'files(id)'
+    // 1. Cari folder peserta
+    const folderPeserta = await drive.files.list({
+      q: `name = '${namaPeserta}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+      fields: "files(id)",
     });
-    
-    if (fileLama.data.files) {
-      for (const old of fileLama.data.files) {
-        // Pindahkan ke Trash (tidak dihapus permanen, biar aman kalau gak sengaja kepencet)
-        await drive.files.update({ fileId: old.id!, requestBody: { trashed: true } });
+
+    const parentId = folderPeserta.data.files?.[0]?.id;
+    if (!parentId) return NextResponse.json({ error: "Folder peserta tidak ditemukan" }, { status: 404 });
+
+    // 2. Cari subfolder (id berkas, misal: Kat. I No. 1)
+    const subFolder = await drive.files.list({
+      q: `name = '${namaFolder}' and '${parentId}' in parents and trashed = false`,
+      fields: "files(id)",
+    });
+
+    const targetFolderId = subFolder.data.files?.[0]?.id;
+    if (!targetFolderId) return NextResponse.json({ error: "Folder berkas tidak ditemukan" }, { status: 404 });
+
+    // 3. Cari file di dalam subfolder tersebut
+    const listFile = await drive.files.list({
+      q: `'${targetFolderId}' in parents and trashed = false`,
+      fields: "files(id, name)",
+    });
+
+    const files = listFile.data.files || [];
+
+    // 4. Hapus semua file yang ada di folder tersebut
+    if (files.length > 0) {
+      for (const file of files) {
+        await drive.files.delete({ fileId: file.id! });
       }
     }
 
-    return NextResponse.json({ pesan: "Berhasil dihapus" }, { status: 200 });
+    return NextResponse.json({ message: "Berkas berhasil dihapus" });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("DRIVE_DELETE_ERROR:", error.message);
+    return NextResponse.json({ error: "Gagal menghapus file di Drive" }, { status: 500 });
   }
 }
