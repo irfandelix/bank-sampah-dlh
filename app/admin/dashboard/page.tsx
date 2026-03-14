@@ -40,6 +40,10 @@ export default function AdminDashboard() {
   const [berkasLinks, setBerkasLinks] = useState<Record<string, string>>({});
   const [loadingLinks, setLoadingLinks] = useState(false);
 
+  // 🟢 STATE BARU: DEADLINE
+  const [deadline, setDeadline] = useState("");
+  const [savingDeadline, setSavingDeadline] = useState(false);
+
   const [stats, setStats] = useState<StatsType>({ totalPeserta: 0, sudahDinilai: 0, tertinggi: "-" });
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState({ isOpen: false, type: "", title: "", message: "" });
@@ -76,11 +80,35 @@ export default function AdminDashboard() {
       const resDrive = await fetch("/api/admin/monitoring-berkas");
       if (resDrive.ok) setDataMonitoring(await resDrive.json());
 
+      // 🟢 FETCH DEADLINE DARI MONGODB
+      const resDeadline = await fetch("/api/pengaturan");
+      if (resDeadline.ok) {
+        const dataDeadline = await resDeadline.json();
+        if (dataDeadline.deadline) setDeadline(dataDeadline.deadline);
+      }
+
       if (isManual) setModal({ isOpen: true, type: "success", title: "Data Terupdate", message: "Data klasemen, peta, dan progres GDrive berhasil disinkronkan." });
     } catch (err) { 
       console.error("Gagal refresh data"); 
     } finally { 
       setLoading(false); setLoadingDrive(false);
+    }
+  };
+
+  // 🟢 FUNGSI SIMPAN DEADLINE
+  const handleSimpanDeadline = async () => {
+    setSavingDeadline(true);
+    try {
+      const res = await fetch("/api/pengaturan", {
+        method: "POST",
+        body: JSON.stringify({ deadline })
+      });
+      if (!res.ok) throw new Error("Gagal menyimpan waktu");
+      setModal({ isOpen: true, type: "success", title: "Berhasil", message: "Batas waktu pendaftaran dan unggah berkas telah diperbarui!" });
+    } catch (err: any) {
+      setModal({ isOpen: true, type: "error", title: "Gagal", message: err.message });
+    } finally {
+      setSavingDeadline(false);
     }
   };
 
@@ -260,25 +288,51 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* --- PANEL KENDALI LIGHT --- */}
+        {/* --- PANEL KENDALI LIGHT + INPUT DEADLINE --- */}
         <div className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 shadow-sm overflow-hidden">
-          <div className="flex items-center gap-4 md:gap-6">
+          <div className="flex items-center gap-4 md:gap-6 w-full lg:w-auto">
             <div className="flex-none w-14 h-14 md:w-16 md:h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-2xl md:text-3xl border border-slate-200 shadow-inner">🛠️</div>
-            <div>
+            <div className="flex-1">
               <h3 className="font-black text-lg md:text-xl text-slate-800">Panel Kendali Utama</h3>
               <p className="text-xs md:text-sm text-slate-500 font-medium">Manajemen basis data dan konfigurasi sistem</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-3 w-full lg:w-auto">
-            <Link href="/admin/akun" className="flex-1 lg:flex-none bg-slate-900 hover:bg-black text-white font-black py-4 px-6 md:px-10 rounded-2xl transition-all active:scale-95 shadow-md uppercase text-[10px] md:text-xs tracking-widest text-center">
-               Kelola Peserta
-            </Link>
-            <button onClick={exportToExcel} className="flex-1 lg:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 px-5 md:px-8 rounded-2xl transition-all active:scale-95 shadow-md uppercase text-[10px] md:text-xs tracking-widest flex items-center justify-center gap-2">
-               <span>📊</span> Export Excel
-            </button>
-            <button onClick={() => fetchDashboardData(true)} className="flex-1 lg:flex-none bg-white hover:bg-slate-50 text-slate-700 font-black py-4 px-6 md:px-8 rounded-2xl transition-all uppercase text-[10px] md:text-xs tracking-widest border border-slate-200 shadow-sm">
-               Refresh
-            </button>
+
+          <div className="flex flex-col lg:flex-row gap-4 w-full lg:w-auto items-end lg:items-center">
+            {/* 🟢 INPUT WAKTU DEADLINE */}
+            <div className="flex flex-col gap-1 w-full lg:w-auto">
+              <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest pl-1">Batas Waktu Upload Peserta</label>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="datetime-local" 
+                  value={deadline}
+                  onChange={(e) => setDeadline(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 text-sm font-bold text-slate-700 px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all w-full lg:w-auto"
+                />
+                <button 
+                  onClick={handleSimpanDeadline} 
+                  disabled={savingDeadline || !deadline}
+                  className="bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 font-black p-3 rounded-2xl transition-all shadow-sm flex items-center justify-center shrink-0 disabled:opacity-50"
+                  title="Simpan Waktu"
+                >
+                  {savingDeadline ? "⏳" : "💾"}
+                </button>
+              </div>
+            </div>
+
+            <div className="w-px h-10 bg-slate-200 hidden lg:block mx-2"></div>
+
+            <div className="flex gap-2 w-full lg:w-auto">
+              <Link href="/admin/akun" className="flex-1 lg:flex-none bg-slate-900 hover:bg-black text-white font-black py-4 px-5 rounded-2xl transition-all active:scale-95 shadow-md uppercase text-[10px] md:text-xs tracking-widest text-center">
+                Peserta
+              </Link>
+              <button onClick={exportToExcel} className="flex-1 lg:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 px-5 rounded-2xl transition-all active:scale-95 shadow-md uppercase text-[10px] md:text-xs tracking-widest flex items-center justify-center gap-2">
+                <span>📊</span> Excel
+              </button>
+              <button onClick={() => fetchDashboardData(true)} className="flex-1 lg:flex-none bg-white hover:bg-slate-50 text-slate-700 font-black py-4 px-5 rounded-2xl transition-all uppercase text-[10px] md:text-xs tracking-widest border border-slate-200 shadow-sm">
+                Refresh
+              </button>
+            </div>
           </div>
         </div>
 
@@ -353,7 +407,6 @@ export default function AdminDashboard() {
                         </td>
                       </tr>
 
-                      {/* 🟢 BARIS EXPAND: TAMPILAN TOMBOL BUTTON SIMPLE KEKINIAN */}
                       {isExpanded && (
                         <tr className="bg-slate-50/80 border-b border-slate-200 shadow-inner">
                           <td colSpan={4} className="p-6 md:p-8">
@@ -372,7 +425,7 @@ export default function AdminDashboard() {
                                       href={link} 
                                       target="_blank" 
                                       rel="noreferrer"
-                                      title={syarat.label} // 💡 Tooltip Rahasia!
+                                      title={syarat.label} 
                                       className="flex items-center gap-2 px-4 py-3 bg-white text-blue-600 border border-blue-200 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-sm active:scale-95"
                                     >
                                       <span>👁️</span> {syarat.id}
@@ -380,7 +433,7 @@ export default function AdminDashboard() {
                                   ) : (
                                     <span 
                                       key={syarat.id} 
-                                      title={`Belum Upload: ${syarat.label}`} // 💡 Tooltip Rahasia!
+                                      title={`Belum Upload: ${syarat.label}`} 
                                       className="flex items-center gap-2 px-4 py-3 bg-slate-100 text-slate-400 border border-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-widest cursor-not-allowed opacity-70"
                                     >
                                       <span>🔒</span> {syarat.id}

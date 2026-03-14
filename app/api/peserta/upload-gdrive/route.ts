@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       folderPesertaId = buatFolderP.data.id!;
     }
 
-    // --- LANGKAH 2: CARI / BUAT FOLDER KATEGORI DI DALAM FOLDER PESERTA ---
+// --- LANGKAH 2: CARI / BUAT FOLDER KATEGORI DI DALAM FOLDER PESERTA ---
     const cekFolderKat = await drive.files.list({
       q: `mimeType='application/vnd.google-apps.folder' and name='${namaKategori}' and '${folderPesertaId}' in parents and trashed=false`,
       fields: 'files(id)',
@@ -50,6 +50,18 @@ export async function POST(request: Request) {
     let targetFolderId = "";
     if (cekFolderKat.data.files && cekFolderKat.data.files.length > 0) {
       targetFolderId = cekFolderKat.data.files[0].id!;
+      
+      // 🔥 FITUR BARU: Hapus file lama kalau ini mode "Ganti File"
+      const fileLama = await drive.files.list({
+        q: `'${targetFolderId}' in parents and trashed=false`,
+        fields: 'files(id)'
+      });
+      if (fileLama.data.files) {
+        for (const old of fileLama.data.files) {
+          await drive.files.update({ fileId: old.id!, requestBody: { trashed: true } });
+        }
+      }
+
     } else {
       const buatFolderK = await drive.files.create({
         requestBody: { name: namaKategori, mimeType: "application/vnd.google-apps.folder", parents: [folderPesertaId] },
