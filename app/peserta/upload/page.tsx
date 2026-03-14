@@ -2,9 +2,6 @@
 
 import { useState, useEffect } from "react";
 import ModalNotif from "@/components/ModalNotif"; 
-import TombolLogout from "@/components/TombolLogout";
-import ThemeToggle from "@/components/ThemeToggle"; 
-import Link from "next/link";
 import React from "react";
 
 const DAFTAR_BERKAS = [
@@ -88,22 +85,8 @@ export default function FormUploadPeserta() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-24 pt-[100px] transition-colors duration-300">
+    <main className="w-full pb-24 pt-[90px] md:pt-[100px] relative">
       <ModalNotif isOpen={modal.isOpen} type={modal.type as any} title={modal.title} message={modal.message} onClose={() => setModal({...modal, isOpen: false})} />
-
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 h-[80px] flex justify-between items-center fixed top-0 left-0 w-full z-[9999] shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/peserta" className="w-10 h-10 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl flex items-center justify-center border border-slate-200 dark:border-slate-700 hover:bg-slate-100 transition-all">←</Link>
-          <div className="flex flex-col">
-            <h1 className="text-lg font-black dark:text-white leading-none">Pendaftaran <span className="text-emerald-600">Berkas</span></h1>
-            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Lomba Bank Sampah 2026</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <TombolLogout />
-        </div>
-      </header>
 
       <div className="max-w-4xl mx-auto px-4 space-y-6">
         {isWaktuHabis && (
@@ -123,8 +106,7 @@ export default function FormUploadPeserta() {
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 font-bold bg-slate-50 dark:bg-slate-800 p-2 rounded-lg inline-block border dark:border-slate-700">{teksDeadline}</p>
         </div>
 
-        {/* PROGRESS BAR */}
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] shadow-sm border border-slate-200 dark:border-slate-800 sticky top-[95px] z-40 transition-colors">
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] shadow-sm border border-slate-200 dark:border-slate-800 sticky top-[75px] md:top-[90px] z-40 transition-colors">
           <div className="flex justify-between items-end mb-4">
             <div>
               <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Progres Kelengkapan</p>
@@ -139,7 +121,6 @@ export default function FormUploadPeserta() {
           </div>
         </div>
 
-        {/* LIST BERKAS */}
         <div className="space-y-8">
           {DAFTAR_BERKAS.map((kategori, idxKat) => (
             <div key={idxKat} className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">

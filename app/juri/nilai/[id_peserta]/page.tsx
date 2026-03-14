@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ModalNotif from "@/components/ModalNotif";
-import TombolLogout from "@/components/TombolLogout";
-import ThemeToggle from "@/components/ThemeToggle";
 import React from "react";
 
 export default function HalamanPenilaianSpesifik() {
@@ -21,7 +19,6 @@ export default function HalamanPenilaianSpesifik() {
   const [isLocked, setIsLocked] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, type: "", title: "", message: "" });
 
-  // 1. Ambil Data Awal
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -65,14 +62,11 @@ export default function HalamanPenilaianSpesifik() {
       const cat1 = (skor["1.1"] || 0) + (skor["1.2"] || 0) + (skor["1.3"] || 0) + (skor["1.4"] || 0) + (skor["1.5"] || 0) + (skor["1.6"] || 0) + (skor["1.7"] || 0);
       const cat1Max = tingkat === "RT" ? 110 : 150;
       total = (cat1 / cat1Max) * 40;
-    } 
-    else if (role === "juri_dkk") {
+    } else if (role === "juri_dkk") {
       total = (((skor["2.1"] || 0) + (skor["2.2"] || 0) + (skor["2.3"] || 0) + (skor["2.4"] || 0)) / 40) * 20;
-    } 
-    else if (role === "juri_bsi") {
+    } else if (role === "juri_bsi") {
       total = (((skor["3.1"] || 0) + (skor["3.2"] || 0) + (skor["3.3"] || 0) + (skor["3.4"] || 0) + (skor["3.5"] || 0) + (skor["3.6"] || 0)) / 80) * 25;
-    }
-    else if (role === "juri_pmd") {
+    } else if (role === "juri_pmd") {
       total = (((skor["4.1"] || 0) / 20) * 7.5) + (((skor["5.1"] || 0) / 20) * 7.5);
     }
     return Math.round(total * 10) / 10;
@@ -90,7 +84,6 @@ export default function HalamanPenilaianSpesifik() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idPeserta: idPeserta, skorBaru: nilaiAkhir, juriRole: user.role, detailSkor: skor }),
       });
-
       if (res.ok) {
         setIsLocked(true);
         setModal({ isOpen: true, type: "success", title: "Sistem Terkunci 🔒", message: `Nilai ${nilaiAkhir} berhasil diamankan.` });
@@ -99,37 +92,29 @@ export default function HalamanPenilaianSpesifik() {
         setModal({ isOpen: true, type: "error", title: "Gagal", message: err.error });
         if (res.status === 403) setIsLocked(true);
       }
-    } catch (e) {
-      setModal({ isOpen: true, type: "error", title: "Error", message: "Koneksi terputus." });
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { setModal({ isOpen: true, type: "error", title: "Error", message: "Koneksi terputus." }); } 
+    finally { setLoading(false); }
   };
 
   if (!user) return null;
 
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans pb-32 pt-[100px] relative transition-colors duration-300">
+    <main className="w-full pb-32 pt-[90px] md:pt-[100px] relative transition-colors duration-300">
       <ModalNotif isOpen={modal.isOpen} type={modal.type as any} title={modal.title} message={modal.message} onClose={() => setModal({ ...modal, isOpen: false })} />
 
-      {/* --- HEADER MODERN --- */}
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 h-[80px] flex justify-between items-center fixed top-0 left-0 w-full z-[9999] shadow-sm transition-colors">
-        <div className="flex items-center gap-4">
-          <button onClick={() => router.back()} className="w-10 h-10 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl flex items-center justify-center border border-slate-200 dark:border-slate-700 hover:bg-slate-100 transition-all">←</button>
+      <div className="max-w-3xl mx-auto px-4 space-y-6">
+        
+        {/* NAVIGASI & INFO PESERTA SPESIFIK */}
+        <div className="flex items-center gap-4 bg-white dark:bg-slate-900 p-5 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm">
+          <button onClick={() => router.back()} className="w-12 h-12 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl flex items-center justify-center border border-slate-200 dark:border-slate-700 hover:bg-slate-100 transition-all shrink-0">←</button>
           <div className="flex flex-col min-w-0">
-            <h1 className="text-sm sm:text-base font-black text-slate-800 dark:text-white truncate uppercase">{namaBankSampah}</h1>
-            <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest leading-none mt-1 truncate">Kec. {kecamatan}</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Target Penilaian</p>
+            <h2 className="text-base md:text-lg font-black text-slate-800 dark:text-white truncate uppercase">{namaBankSampah}</h2>
+            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest leading-none mt-1 truncate">Kec. {kecamatan}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <TombolLogout />
-        </div>
-      </header>
 
-      <div className="max-w-3xl mx-auto px-4 mt-2 space-y-6">
-        
-        {/* TINGKAT WILAYAH (KHUSUS DLH) */}
+        {/* TINGKAT WILAYAH */}
         {user.role === "juri_dlh" && (
           <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
             <label className="block text-sm font-extrabold text-slate-700 dark:text-slate-300 mb-3">Tingkat Wilayah Binaan:</label>
@@ -147,7 +132,7 @@ export default function HalamanPenilaianSpesifik() {
           </div>
         )}
 
-        {/* INDIKATOR PENILAIAN SESUAI ROLE */}
+        {/* INDIKATOR PENILAIAN */}
         <div className={`space-y-6 ${isLocked ? 'opacity-80' : ''}`}>
           {user.role === "juri_dlh" && (
             <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-emerald-100 dark:border-emerald-900/20">
@@ -215,11 +200,7 @@ export default function HalamanPenilaianSpesifik() {
           {!isLocked && (
             <button className="bg-slate-100 dark:bg-slate-800 text-slate-600 p-4 rounded-2xl" onClick={() => setSkor({})}>🗑️</button>
           )}
-          <button 
-            onClick={handleSimpan} 
-            disabled={loading || isLocked} 
-            className={`px-8 font-black py-4 rounded-2xl shadow-xl transition-all text-sm uppercase tracking-widest ${isLocked ? "bg-slate-200 dark:bg-slate-800 text-slate-400" : "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 active:scale-95"}`}
-          >
+          <button onClick={handleSimpan} disabled={loading || isLocked} className={`px-8 font-black py-4 rounded-2xl shadow-xl transition-all text-sm uppercase tracking-widest ${isLocked ? "bg-slate-200 dark:bg-slate-800 text-slate-400" : "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 active:scale-95"}`}>
             {isLocked ? "TERKUNCI" : "Kirim Skor"}
           </button>
         </div>

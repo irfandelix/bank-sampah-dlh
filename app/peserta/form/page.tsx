@@ -1,149 +1,145 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import ModalNotif from "@/components/ModalNotif";
-import TombolLogout from "@/components/TombolLogout";
-import ThemeToggle from "@/components/ThemeToggle"; // 👈 Tambah ini
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ModalNotif from "@/components/ModalNotif";
+import React from "react";
 
 export default function FormProfilPeserta() {
-  const [loading, setLoading] = useState(false);
+  const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, type: "", title: "", message: "" });
   
+  // State Form
   const [formData, setFormData] = useState({
-    namaBank: "",
-    alamat: "",
-    koordinat: "",
-    waktuPendirian: "", 
     namaKetua: "",
-    noHp: ""
+    tahunBerdiri: "",
+    alamat: "",
+    latitude: "",
+    longitude: ""
   });
 
   useEffect(() => {
     const savedUser = sessionStorage.getItem("user");
-    if (savedUser) setUser(JSON.parse(savedUser));
-  }, []);
+    if (!savedUser) {
+      router.push("/");
+    } else {
+      const parsedUser = JSON.parse(savedUser);
+      setUser(parsedUser);
+      fetchProfil(parsedUser.username);
+    }
+  }, [router]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const fetchProfil = async (username: string) => {
+    try {
+      // Sesuaikan endpoint API ini dengan milikmu
+      const res = await fetch(`/api/peserta/profil?username=${username}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data) setFormData({ ...formData, ...data });
+      }
+    } catch (err) {
+      console.error("Gagal mengambil profil", err);
+    }
   };
 
-  const dapatkanLokasi = () => {
+  const handleGetLocation = () => {
     if (!navigator.geolocation) {
-      setModal({ isOpen: true, type: "error", title: "Gagal", message: "Browser tidak mendukung GPS." });
+      setModal({ isOpen: true, type: "error", title: "Gagal", message: "Browser Anda tidak mendukung GPS." });
       return;
     }
-    setModal({ isOpen: true, type: "info", title: "Mencari Lokasi...", message: "Sedang mengambil koordinat GPS Anda." });
-    navigator.geolocation.getCurrentPosition((pos) => {
-      setFormData({ ...formData, koordinat: `${pos.coords.latitude}, ${pos.coords.longitude}` });
-      setModal({ isOpen: true, type: "success", title: "Berhasil", message: "Koordinat terkunci!" });
-    }, () => {
-      setModal({ isOpen: true, type: "error", title: "Akses Ditolak", message: "Nyalakan GPS Anda." });
-    });
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setFormData({
+          ...formData,
+          latitude: position.coords.latitude.toString(),
+          longitude: position.coords.longitude.toString()
+        });
+      },
+      () => setModal({ isOpen: true, type: "error", title: "Akses Ditolak", message: "Gagal mendapatkan lokasi. Pastikan GPS aktif." })
+    );
   };
 
-  const handleSimpan = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch("/api/peserta/simpan-profil", {
+      const res = await fetch("/api/peserta/profil", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, username: user.username }),
+        body: JSON.stringify({ username: user.username, ...formData })
       });
       if (res.ok) {
-        setModal({ isOpen: true, type: "success", title: "Tersimpan!", message: "Profil berhasil masuk ke Database." });
+        setModal({ isOpen: true, type: "success", title: "Tersimpan!", message: "Profil Bank Sampah berhasil diperbarui." });
+      } else {
+        throw new Error("Gagal menyimpan profil.");
       }
-    } catch (error) {
-      setModal({ isOpen: true, type: "error", title: "Error", message: "Gagal menyambung ke server." });
+    } catch (err) {
+      setModal({ isOpen: true, type: "error", title: "Error", message: "Terjadi kesalahan sistem." });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-16 pt-[100px] px-4 transition-colors duration-300">
-      <ModalNotif isOpen={modal.isOpen} type={modal.type as any} title={modal.title} message={modal.message} onClose={() => setModal({ ...modal, isOpen: false })} />
-      
-      {/* --- HEADER --- */}
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 h-[80px] flex justify-between items-center fixed top-0 left-0 w-full z-[9999] shadow-sm box-border">
+    <main className="w-full pb-24 pt-[90px] md:pt-[100px] relative">
+      <ModalNotif isOpen={modal.isOpen} type={modal.type as any} title={modal.title} message={modal.message} onClose={() => setModal({...modal, isOpen: false})} />
+
+      <div className="max-w-3xl mx-auto px-4 space-y-6">
+        
+        {/* Navigasi Kembali */}
         <div className="flex items-center gap-4">
-          <Link 
-            href="/peserta" 
-            className="w-10 h-10 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl flex items-center justify-center border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all active:scale-90"
-            title="Kembali ke Dashboard"
-          >
-            <span className="text-xl">←</span>
-          </Link>
-
-          <div className="flex flex-col justify-center min-w-0">
-            <h1 className="text-lg sm:text-xl font-black text-slate-800 dark:text-white tracking-tight leading-none truncate">
-              Lengkapi <span className="text-emerald-600">Profil</span>
-            </h1>
-            <p className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mt-1.5 leading-none truncate">
-              Monitoring Bank Sampah 2026
-            </p>
+          <Link href="/peserta" className="w-10 h-10 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 rounded-xl flex items-center justify-center border border-slate-200 dark:border-slate-800 shadow-sm hover:bg-slate-50 transition-all">←</Link>
+          <div>
+            <h2 className="text-xl font-black text-slate-800 dark:text-white leading-none">Profil Identitas</h2>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mt-1">Lengkapi Data Bank Sampah</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
-          <ThemeToggle /> {/* ☀️/🌙 Saklar Dark Mode */}
-          <TombolLogout />
-        </div>
-      </header>
+        <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 p-6 md:p-10 rounded-[2.5rem] shadow-sm border border-slate-200 dark:border-slate-800 space-y-6 transition-colors">
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nama Bank Sampah (Terkunci)</label>
+              <input type="text" disabled value={user?.namaInstansi || ""} className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 px-5 py-4 rounded-2xl font-bold cursor-not-allowed" />
+            </div>
 
-      {/* --- FORM CARD --- */}
-      <div className="max-w-2xl mx-auto bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border border-slate-200 dark:border-slate-800 mt-8 transition-colors">
-        <div className="mb-8 border-b border-slate-100 dark:border-slate-800 pb-4 text-center">
-            <h2 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">Data Identitas Entitas</h2>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-1">Lomba Bank Sampah Sragen 2026</p>
-        </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Nama Ketua / Direktur</label>
+              <input required type="text" value={formData.namaKetua} onChange={(e) => setFormData({...formData, namaKetua: e.target.value})} className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 px-5 py-4 rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all" placeholder="Contoh: Budi Santoso" />
+            </div>
 
-        <form onSubmit={handleSimpan} className="space-y-5">
-          {/* 1. Nama */}
-          <div>
-            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest">1. Nama Bank Sampah</label>
-            <input required name="namaBank" value={formData.namaBank} onChange={handleChange} placeholder="Contoh: Bank Sampah Resik Mukti" className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 font-bold mt-1 focus:ring-2 focus:ring-emerald-500 outline-none dark:text-slate-200" />
-          </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Tahun Berdiri</label>
+              <input required type="number" value={formData.tahunBerdiri} onChange={(e) => setFormData({...formData, tahunBerdiri: e.target.value})} className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 px-5 py-4 rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all" placeholder="Contoh: 2021" />
+            </div>
 
-          {/* 2. Alamat */}
-          <div>
-            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest">2. Alamat Lengkap</label>
-            <textarea required name="alamat" value={formData.alamat} onChange={handleChange} placeholder="Jl. Raya..., RT/RW..., Desa..., Kec..." rows={3} className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 font-bold mt-1 focus:ring-2 focus:ring-emerald-500 outline-none resize-none dark:text-slate-200" />
-          </div>
-
-          {/* 3. Titik Koordinat */}
-          <div>
-            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest">3. Titik Koordinat Lokasi</label>
-            <div className="flex flex-col sm:flex-row gap-2 mt-1">
-              <input readOnly name="koordinat" value={formData.koordinat} placeholder="Klik Ambil Lokasi ->" className="flex-1 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-slate-500 dark:text-slate-400 cursor-not-allowed" />
-              <button type="button" onClick={dapatkanLokasi} className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-6 py-4 rounded-xl font-black text-[10px] border border-amber-200 dark:border-amber-800 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-all uppercase tracking-widest shrink-0">📍 Ambil Lokasi</button>
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Alamat Lengkap</label>
+              <textarea required rows={3} value={formData.alamat} onChange={(e) => setFormData({...formData, alamat: e.target.value})} className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 px-5 py-4 rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all" placeholder="Contoh: Jl. Raya Sukowati No. 12, RT 01/RW 02..." />
             </div>
           </div>
 
-          {/* 4. Waktu Pendirian */}
-          <div>
-            <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest">4. Waktu Pendirian</label>
-            <input required type="date" name="waktuPendirian" value={formData.waktuPendirian} onChange={handleChange} className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 font-bold mt-1 focus:ring-2 focus:ring-emerald-500 outline-none dark:text-slate-200" />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             {/* 5. Nama Ketua */}
+          <div className="p-6 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-3xl space-y-4">
              <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest">5. Nama Ketua / Direktur</label>
-                <input required name="namaKetua" value={formData.namaKetua} onChange={handleChange} placeholder="Nama Lengkap" className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 font-bold mt-1 focus:ring-2 focus:ring-emerald-500 outline-none dark:text-slate-200" />
+                <h3 className="font-black text-blue-800 dark:text-blue-400">Penguncian Koordinat GPS</h3>
+                <p className="text-xs text-blue-600 dark:text-blue-500 font-medium mt-1">Pastikan Anda berada di lokasi Bank Sampah saat mengklik tombol ini agar titik akurat di peta.</p>
              </div>
-             {/* 6. No HP */}
-             <div>
-                <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest">6. No. WhatsApp Ketua</label>
-                <input required type="tel" name="noHp" value={formData.noHp} onChange={handleChange} placeholder="0812..." className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 font-bold mt-1 focus:ring-2 focus:ring-emerald-500 outline-none dark:text-slate-200" />
+             <div className="flex flex-col md:flex-row gap-4">
+                <input readOnly type="text" placeholder="Latitude" value={formData.latitude} className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-4 py-3 rounded-xl font-bold text-sm text-slate-600 dark:text-slate-300" />
+                <input readOnly type="text" placeholder="Longitude" value={formData.longitude} className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-4 py-3 rounded-xl font-bold text-sm text-slate-600 dark:text-slate-300" />
+                <button type="button" onClick={handleGetLocation} className="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-3 rounded-xl shadow-sm transition-all active:scale-95 text-xs uppercase tracking-widest">📍 Lacak Lokasi</button>
              </div>
           </div>
 
-          <button disabled={loading} className="w-full bg-emerald-600 dark:bg-emerald-500 text-white dark:text-slate-900 font-black py-5 rounded-2xl shadow-lg hover:bg-emerald-700 dark:hover:bg-emerald-400 active:scale-[0.98] transition-all uppercase text-xs tracking-[0.2em] mt-8 flex justify-center items-center gap-2">
-            {loading ? "Menyimpan Data..." : "💾 Simpan Profil Entitas"}
-          </button>
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+             <button type="submit" disabled={loading} className="w-full bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-black dark:hover:bg-white font-black py-5 rounded-2xl shadow-lg uppercase text-[10px] tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50">
+               {loading ? "Menyimpan Data..." : "💾 Simpan Profil Identitas"}
+             </button>
+          </div>
+
         </form>
       </div>
     </main>

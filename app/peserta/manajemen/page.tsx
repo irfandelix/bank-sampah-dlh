@@ -2,9 +2,6 @@
 
 import { useState, useEffect } from "react";
 import ModalNotif from "@/components/ModalNotif";
-import TombolLogout from "@/components/TombolLogout";
-import ThemeToggle from "@/components/ThemeToggle";
-import Link from "next/link";
 import React from "react";
 
 const DAFTAR_BERKAS = [
@@ -47,44 +44,25 @@ export default function ManajemenBerkasPeserta() {
         const tglSekarang = new Date();
         const formatter = new Intl.DateTimeFormat('id-ID', { dateStyle: 'full', timeStyle: 'short' });
         setTeksDeadline(formatter.format(tglBatas));
-        
-        if (tglSekarang > tglBatas) {
-          setIsWaktuHabis(true);
-        }
+        if (tglSekarang > tglBatas) setIsWaktuHabis(true);
       }
-    } catch (err) {
-      console.error("Sync Error");
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error("Sync Error"); } 
+    finally { setLoading(false); }
   };
 
   const handleHapus = async (idBerkas: string) => {
-    if (isWaktuHabis) {
-      setModal({ isOpen: true, type: "error", title: "Akses Ditolak", message: "Batas waktu sudah habis. Anda tidak diperbolehkan menghapus dokumen." });
-      return;
-    }
-    
+    if (isWaktuHabis) return setModal({ isOpen: true, type: "error", title: "Akses Ditolak", message: "Batas waktu sudah habis." });
     setProsesId(idBerkas);
     try {
-      const res = await fetch("/api/peserta/hapus-gdrive", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          namaPeserta: user.namaInstansi || user.username,
-          namaFolder: idBerkas
-        }),
-      });
-
+      const res = await fetch("/api/peserta/hapus-gdrive", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ namaPeserta: user.namaInstansi || user.username, namaFolder: idBerkas }) });
       if (res.ok) {
         setModal({ isOpen: true, type: "success", title: "Berhasil", message: "Berkas lama dihapus. Silakan unggah berkas baru." });
         const updated = { ...sudahAdaDiDrive };
         delete updated[idBerkas];
         setSudahAdaDiDrive(updated);
       } else { throw new Error(); }
-    } catch (err) {
-      setModal({ isOpen: true, type: "error", title: "Gagal", message: "Gagal terhubung ke Drive." });
-    } finally { setProsesId(null); }
+    } catch (err) { setModal({ isOpen: true, type: "error", title: "Gagal", message: "Gagal terhubung ke Drive." }); } 
+    finally { setProsesId(null); }
   };
 
   const handleUploadLangsung = async (e: React.ChangeEvent<HTMLInputElement>, idBerkas: string) => {
@@ -93,10 +71,7 @@ export default function ManajemenBerkasPeserta() {
     if (!file) return;
 
     setProsesId(idBerkas);
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("namaFolder", idBerkas);
-    fd.append("namaPeserta", user.namaInstansi || user.username);
+    const fd = new FormData(); fd.append("file", file); fd.append("namaFolder", idBerkas); fd.append("namaPeserta", user.namaInstansi || user.username);
 
     try {
       const res = await fetch("/api/peserta/upload-gdrive", { method: "POST", body: fd });
@@ -106,46 +81,30 @@ export default function ManajemenBerkasPeserta() {
         const dataR = await resR.json();
         if (dataR.berkasTerisi) setSudahAdaDiDrive(dataR.berkasTerisi);
       }
-    } catch (err) {
-      setModal({ isOpen: true, type: "error", title: "Gagal", message: "Gagal mengunggah berkas." });
-    } finally { setProsesId(null); }
+    } catch (err) { setModal({ isOpen: true, type: "error", title: "Gagal", message: "Gagal mengunggah berkas." }); } 
+    finally { setProsesId(null); }
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-24 pt-[100px] transition-colors duration-300">
+    <main className="w-full pb-24 pt-[90px] md:pt-[100px] relative">
       <ModalNotif isOpen={modal.isOpen} type={modal.type as any} title={modal.title} message={modal.message} onClose={() => setModal({...modal, isOpen: false})} />
 
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 h-[80px] flex justify-between items-center fixed top-0 left-0 w-full z-[9999] shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link href="/peserta" className="w-10 h-10 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl flex items-center justify-center border border-slate-200 dark:border-slate-700">←</Link>
-          <div className="flex flex-col">
-            <h1 className="text-lg font-black dark:text-white leading-none">Manajemen <span className="text-amber-500">Berkas</span></h1>
-            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">Status & Perubahan Berkas</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <TombolLogout />
-        </div>
-      </header>
-
       <div className="max-w-4xl mx-auto px-4 space-y-6">
-        {/* STATUS DEADLINE */}
-        <div className={`p-6 rounded-[2.5rem] border-2 transition-all ${isWaktuHabis ? 'bg-red-50 dark:bg-red-950/20 border-red-500' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'}`}>
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-4 text-center md:text-left">
-               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl ${isWaktuHabis ? 'bg-red-500 text-white animate-pulse' : 'bg-amber-100 text-amber-600'}`}>
+        <div className={`p-5 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border-2 transition-all ${isWaktuHabis ? 'bg-red-50 dark:bg-red-950/20 border-red-500' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'}`}>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-center gap-4">
+               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0 ${isWaktuHabis ? 'bg-red-500 text-white animate-pulse' : 'bg-amber-100 text-amber-600'}`}>
                  {isWaktuHabis ? "🔒" : "⏳"}
                </div>
                <div>
-                 <h2 className={`font-black uppercase text-xs tracking-widest ${isWaktuHabis ? 'text-red-600' : 'text-slate-400'}`}>
+                 <h2 className={`font-black uppercase text-[10px] sm:text-xs tracking-widest ${isWaktuHabis ? 'text-red-600' : 'text-slate-400'}`}>
                    {isWaktuHabis ? "Akses Perubahan Ditutup" : "Batas Akhir Perubahan"}
                  </h2>
-                 <p className="text-sm font-bold">{teksDeadline} WIB</p>
+                 <p className="text-xs sm:text-sm font-bold mt-1">{teksDeadline} WIB</p>
                </div>
             </div>
             {isWaktuHabis && (
-              <span className="bg-red-600 text-white text-[10px] font-black px-4 py-2 rounded-full uppercase tracking-tighter">Sistem Terkunci</span>
+              <span className="bg-red-600 text-white text-[9px] sm:text-[10px] font-black px-4 py-2 rounded-full uppercase tracking-tighter w-full md:w-auto text-center">Sistem Terkunci</span>
             )}
           </div>
         </div>
@@ -153,48 +112,43 @@ export default function ManajemenBerkasPeserta() {
         {loading ? (
           <div className="text-center py-20 font-black text-slate-400 animate-pulse tracking-widest uppercase text-xs">Menyinkronkan data...</div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-6 sm:space-y-8">
             {DAFTAR_BERKAS.map((kat, idx) => (
-              <div key={idx} className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
-                <h3 className="text-lg font-black text-slate-800 dark:text-white mb-6 border-b dark:border-slate-800 pb-4">{kat.kategori}</h3>
+              <div key={idx} className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-[2rem] sm:rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+                <h3 className="text-base sm:text-lg font-black text-slate-800 dark:text-white mb-4 sm:mb-6 border-b dark:border-slate-800 pb-3 sm:pb-4">{kat.kategori}</h3>
                 <div className="grid gap-3">
                   {kat.items.map((item) => {
                     const link = sudahAdaDiDrive[item.id];
                     const isProcessing = prosesId === item.id;
                     
                     return (
-                      <div key={item.id} className={`p-5 rounded-2xl border-2 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 transition-all ${link ? 'border-emerald-100 dark:border-emerald-900/30 bg-emerald-50/20 dark:bg-emerald-900/5' : 'border-slate-100 dark:border-slate-800 border-dashed opacity-80'}`}>
-                        <div className="flex-1">
-                          <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-500 uppercase mb-1">{item.id}</p>
-                          <h4 className={`text-sm font-bold ${link ? 'dark:text-slate-200 text-slate-800' : 'text-slate-400 italic'}`}>{item.label}</h4>
-                          {link && <p className="text-[10px] text-emerald-600 font-bold mt-1">Sudah Diunggah</p>}
+                      <div key={item.id} className={`p-4 sm:p-5 rounded-2xl border-2 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all ${link ? 'border-emerald-100 dark:border-emerald-900/30 bg-emerald-50/20 dark:bg-emerald-900/5' : 'border-slate-100 dark:border-slate-800 border-dashed opacity-80'}`}>
+                        <div className="w-full md:flex-1">
+                          <p className="text-[9px] sm:text-[10px] font-black text-emerald-600 dark:text-emerald-500 uppercase mb-1">{item.id}</p>
+                          <h4 className={`text-xs sm:text-sm font-bold ${link ? 'dark:text-slate-200 text-slate-800' : 'text-slate-400 italic'}`}>{item.label}</h4>
+                          {link && <p className="text-[9px] sm:text-[10px] text-emerald-600 font-bold mt-1">Sudah Diunggah</p>}
                         </div>
-                        
-                        <div className="flex items-center gap-2 w-full lg:w-auto">
+                        <div className="flex w-full md:w-auto items-center gap-2 mt-2 md:mt-0">
                           {link ? (
                             <>
-                              <a href={link} target="_blank" rel="noreferrer" className="flex-1 sm:flex-none text-center bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50 px-5 py-3 rounded-xl font-black text-[10px] uppercase shadow-sm">Lihat</a>
+                              <a href={link} target="_blank" rel="noreferrer" className="w-1/2 md:w-auto text-center bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50 px-4 sm:px-5 py-3 rounded-xl font-black text-[9px] sm:text-[10px] uppercase shadow-sm hover:bg-blue-50 transition-all">Lihat</a>
                               {!isWaktuHabis && (
-                                <button 
-                                  onClick={() => handleHapus(item.id)} 
-                                  disabled={isProcessing}
-                                  className="flex-1 lg:flex-none bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/50 px-5 py-3 rounded-xl font-black text-[10px] uppercase shadow-sm disabled:opacity-30"
-                                >
+                                <button onClick={() => handleHapus(item.id)} disabled={isProcessing} className="w-1/2 md:w-auto bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/50 px-4 sm:px-5 py-3 rounded-xl font-black text-[9px] sm:text-[10px] uppercase shadow-sm disabled:opacity-30 transition-all active:scale-95">
                                   {isProcessing ? "..." : "Hapus"}
                                 </button>
                               )}
                             </>
                           ) : (
-                            <div className="relative w-full lg:w-auto">
+                            <div className="relative w-full md:w-auto">
                               {!isWaktuHabis ? (
                                 <>
                                   <input type="file" id={`up-${item.id}`} className="hidden" onChange={(e) => handleUploadLangsung(e, item.id)} disabled={isProcessing} accept=".pdf,.jpg,.jpeg,.png" />
-                                  <label htmlFor={`up-${item.id}`} className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-black text-[10px] uppercase bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 cursor-pointer shadow-sm">
-                                    {isProcessing ? "⏳..." : "📤 Unggah"}
+                                  <label htmlFor={`up-${item.id}`} className="flex items-center justify-center w-full md:w-auto gap-2 px-6 py-3 rounded-xl font-black text-[9px] sm:text-[10px] uppercase bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 cursor-pointer shadow-sm active:scale-95 transition-all text-center">
+                                    {isProcessing ? "⏳ Memproses..." : "📤 Unggah"}
                                   </label>
                                 </>
                               ) : (
-                                <div className="px-6 py-3 rounded-xl font-black text-[10px] uppercase bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700 cursor-not-allowed">Kosong</div>
+                                <div className="w-full md:w-auto text-center px-6 py-3 rounded-xl font-black text-[9px] sm:text-[10px] uppercase bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700 cursor-not-allowed">Kosong</div>
                               )}
                             </div>
                           )}

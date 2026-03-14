@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ModalNotif from "@/components/ModalNotif";
-import TombolLogout from "@/components/TombolLogout";
-import ThemeToggle from "@/components/ThemeToggle"; // 👈 Tambah ini
 import React from "react";
 
 export default function FormPenilaianJuri() {
@@ -19,7 +17,6 @@ export default function FormPenilaianJuri() {
   const [skorPaten, setSkorPaten] = useState(0); 
   const [modal, setModal] = useState({ isOpen: false, type: "", title: "", message: "" });
 
-  // 1. Ambil Data User & Daftar Peserta
   useEffect(() => {
     const savedUser = sessionStorage.getItem("user");
     if (!savedUser) {
@@ -30,7 +27,6 @@ export default function FormPenilaianJuri() {
     fetch("/api/admin/get-peserta").then(res => res.json()).then(data => setDaftarPeserta(data.peserta));
   }, [router]);
 
-  // 2. 🔒 CEK STATUS GEMBOK
   useEffect(() => {
     const cekStatusGembok = async () => {
       if (!pesertaTerpilih || !user) {
@@ -38,25 +34,15 @@ export default function FormPenilaianJuri() {
         setSkor({}); 
         return;
       }
-
       setLoading(true);
       try {
         const res = await fetch(`/api/juri/cek-nilai?id=${pesertaTerpilih}&role=${user.role}`);
         const data = await res.json();
-
         if (res.ok && data.isLocked) {
           setIsLocked(true);
           setSkorPaten(data.nilaiLama); 
-          if (data.detailLama) {
-            setSkor(data.detailLama); 
-          }
-
-          setModal({ 
-            isOpen: true, 
-            type: "success", 
-            title: "Data Ditemukan 🔒", 
-            message: "Anda sedang melihat arsip penilaian untuk Bank Sampah ini. Data tidak dapat diubah." 
-          });
+          if (data.detailLama) setSkor(data.detailLama); 
+          setModal({ isOpen: true, type: "success", title: "Data Ditemukan 🔒", message: "Anda sedang melihat arsip penilaian untuk Bank Sampah ini. Data tidak dapat diubah." });
         } else {
           setIsLocked(false);
           setSkor({}); 
@@ -67,7 +53,6 @@ export default function FormPenilaianJuri() {
         setLoading(false);
       }
     };
-
     cekStatusGembok();
   }, [pesertaTerpilih, user]);
 
@@ -85,21 +70,17 @@ export default function FormPenilaianJuri() {
       const cat1 = (skor["1.1"] || 0) + (skor["1.2"] || 0) + (skor["1.3"] || 0) + (skor["1.4"] || 0) + (skor["1.5"] || 0) + (skor["1.6"] || 0) + (skor["1.7"] || 0);
       const cat1Max = tingkat === "RT" ? 110 : 150;
       total = (cat1 / cat1Max) * 40;
-    } 
-    else if (role === "juri_dkk") {
+    } else if (role === "juri_dkk") {
       const cat2 = (skor["2.1"] || 0) + (skor["2.2"] || 0) + (skor["2.3"] || 0) + (skor["2.4"] || 0);
       total = (cat2 / 40) * 20;
-    } 
-    else if (role === "juri_bsi") {
+    } else if (role === "juri_bsi") {
       const cat3 = (skor["3.1"] || 0) + (skor["3.2"] || 0) + (skor["3.3"] || 0) + (skor["3.4"] || 0) + (skor["3.5"] || 0) + (skor["3.6"] || 0);
       total = (cat3 / 80) * 25;
-    }
-    else if (role === "juri_pmd") {
+    } else if (role === "juri_pmd") {
       const skorKat4 = ((skor["4.1"] || 0) / 20) * 7.5;
       const skorKat5 = ((skor["5.1"] || 0) / 20) * 7.5;
       total = skorKat4 + skorKat5;
     }
-
     return Math.round(total * 10) / 10; 
   };
 
@@ -115,14 +96,8 @@ export default function FormPenilaianJuri() {
       const res = await fetch("/api/juri/simpan-nilai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          idPeserta: pesertaTerpilih, 
-          skorBaru: nilaiAkhir, 
-          juriRole: user.role,
-          detailSkor: skor 
-        }),
+        body: JSON.stringify({ idPeserta: pesertaTerpilih, skorBaru: nilaiAkhir, juriRole: user.role, detailSkor: skor }),
       });
-
       if (res.ok) {
         setIsLocked(true); 
         setModal({ isOpen: true, type: "success", title: "Sistem Terkunci 🔒", message: `Skor ${nilaiAkhir} poin telah diamankan secara permanen.` });
@@ -132,61 +107,26 @@ export default function FormPenilaianJuri() {
         setModal({ isOpen: true, type: "error", title: "Gagal", message: err.error });
         if (res.status === 403) setIsLocked(true); 
       }
-    } catch (e) {
-      setModal({ isOpen: true, type: "error", title: "Error", message: "Koneksi terputus." });
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { setModal({ isOpen: true, type: "error", title: "Error", message: "Koneksi terputus." }); } 
+    finally { setLoading(false); }
   };
 
   if (!user) return <div className="p-10 text-center font-bold text-slate-500 flex items-center justify-center h-screen dark:bg-slate-950">Memuat Form Penilaian...</div>;
 
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans pb-32 pt-[100px] relative transition-colors duration-300">
+    <main className="w-full pb-32 pt-[90px] md:pt-[100px] relative transition-colors duration-300">
       <ModalNotif isOpen={modal.isOpen} type={modal.type as any} title={modal.title} message={modal.message} onClose={() => setModal({ ...modal, isOpen: false })} />
 
-      {/* --- HEADER --- */}
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 h-[80px] flex justify-between items-center fixed top-0 left-0 w-full z-[9999] shadow-sm box-border transition-colors">
-        <div className="flex flex-col justify-center min-w-0 mr-4">
-          <h1 className="text-lg sm:text-xl font-black text-slate-800 dark:text-white tracking-tight leading-none truncate uppercase">
-            {user.namaInstansi || user.nama || user.role.replace('_', ' ')}
-          </h1>
-          <p className="text-[9px] sm:text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-widest mt-1.5 leading-none truncate">
-            Panel Penilaian Juri
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          <ThemeToggle /> {/* 👈 SAKLAR DARK MODE */}
-          <TombolLogout />
-          <div className="flex items-center gap-3 border-l border-slate-200 dark:border-slate-700 pl-4 ml-1">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-black text-slate-800 dark:text-white leading-none uppercase">Tim Penilai</p>
-              <p className="text-[10px] font-bold text-emerald-600 uppercase mt-1 tracking-wider leading-none">Sragen Regency</p>
-            </div>
-            <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-xl flex items-center justify-center font-black border border-emerald-200 dark:border-emerald-800 text-xs shrink-0">
-              JURI
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-3xl mx-auto px-4 mt-2 space-y-6">
+      <div className="max-w-3xl mx-auto px-4 space-y-6">
         
         {/* PILIH PESERTA */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 relative overflow-hidden transition-colors">
           {isLocked && <div className="absolute top-0 left-0 w-full h-1.5 bg-amber-500"></div>}
-          
           <label className="block text-sm font-extrabold text-slate-700 dark:text-slate-300 mb-2 flex justify-between items-center">
             1. Pilih Bank Sampah Sasaran:
             {isLocked && <span className="text-amber-700 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800 px-3 py-1 rounded-md text-[10px] uppercase font-black tracking-widest">🔒 Terkunci</span>}
           </label>
-          
-          <select 
-            value={pesertaTerpilih} 
-            onChange={(e) => setPesertaTerpilih(e.target.value)} 
-            className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700 dark:text-slate-200 transition-colors"
-          >
+          <select value={pesertaTerpilih} onChange={(e) => setPesertaTerpilih(e.target.value)} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-emerald-500 text-slate-700 dark:text-slate-200 transition-colors">
             <option value="">-- Ketuk untuk memilih --</option>
             {daftarPeserta.map((p) => <option key={p._id} value={p._id}>{p.namaInstansi}</option>)}
           </select>
@@ -286,7 +226,7 @@ export default function FormPenilaianJuri() {
 
       </div>
 
-      {/* --- PANEL BAWAH --- */}
+      {/* PANEL BAWAH FIXED */}
       <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-4 shadow-[0_-15px_30px_rgba(0,0,0,0.08)] z-20 flex justify-between items-center px-6 rounded-t-3xl transition-colors">
         <div className="flex-1">
           <p className="text-[10px] font-bold text-slate-400 uppercase">Kontribusi Nilai</p>
@@ -299,20 +239,9 @@ export default function FormPenilaianJuri() {
         </div>
         <div className="flex gap-2 w-1/2">
           {!isLocked && (
-            <button 
-              className="flex-none bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-black p-4 rounded-2xl transition-all"
-              onClick={() => setSkor({})}
-            >
-              🗑️
-            </button>
+            <button className="flex-none bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-black p-4 rounded-2xl transition-all" onClick={() => setSkor({})}>🗑️</button>
           )}
-          <button 
-            onClick={handleSimpan} 
-            disabled={loading || isLocked} 
-            className={`flex-1 font-black py-4 rounded-2xl shadow-xl transition-all text-sm uppercase tracking-widest ${
-              isLocked ? "bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed shadow-none" : "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-black active:scale-95"
-            }`}
-          >
+          <button onClick={handleSimpan} disabled={loading || isLocked} className={`flex-1 font-black py-4 rounded-2xl shadow-xl transition-all text-sm uppercase tracking-widest ${isLocked ? "bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed shadow-none" : "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-black active:scale-95"}`}>
             {loading ? "Proses..." : isLocked ? "TERKUNCI" : "Kirim Skor"}
           </button>
         </div>
@@ -321,7 +250,7 @@ export default function FormPenilaianJuri() {
   );
 }
 
-// 🔒 KOMPONEN ITEM SOAL
+// 🔒 KOMPONEN ITEM SOAL (Murni tanpa perubahan logic, cuma dirapikan warnanya)
 function ItemSoal({ id, judul, options, skor, onChange, isLocked }: { id: string, judul: string, options: any[], skor: any, onChange: any, isLocked?: boolean }) {
   const activeIndex = options.findIndex(opt => skor[id] >= opt.min && skor[id] <= opt.max);
   return (
@@ -331,18 +260,7 @@ function ItemSoal({ id, judul, options, skor, onChange, isLocked }: { id: string
         {options.map((opt, i) => {
           const isSelected = activeIndex === i;
           return (
-            <button 
-              key={i} 
-              disabled={isLocked} 
-              onClick={() => onChange(id, opt.max)} 
-              className={`p-4 rounded-2xl text-left border-2 transition-all flex flex-col justify-between min-h-[95px] ${
-                isLocked ? "cursor-not-allowed" : "active:scale-95"
-              } ${
-                isSelected 
-                  ? "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-500 shadow-md" 
-                  : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-emerald-200 dark:hover:border-emerald-800"
-              }`}
-            >
+            <button key={i} disabled={isLocked} onClick={() => onChange(id, opt.max)} className={`p-4 rounded-2xl text-left border-2 transition-all flex flex-col justify-between min-h-[95px] ${isLocked ? "cursor-not-allowed" : "active:scale-95"} ${isSelected ? "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-500 shadow-md" : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 hover:border-emerald-200 dark:hover:border-emerald-800"}`}>
               <span className={`text-sm font-bold leading-snug ${isSelected ? 'text-emerald-800 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-400'}`}>{opt.l}</span>
               <span className={`text-xs mt-3 font-black px-3 py-1.5 inline-block rounded-lg ${isSelected ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}>{opt.r}</span>
             </button>
@@ -356,18 +274,7 @@ function ItemSoal({ id, judul, options, skor, onChange, isLocked }: { id: string
             {Array.from({ length: options[activeIndex].max - options[activeIndex].min + 1 }, (_, i) => options[activeIndex].min + i).map((val) => {
               const isValSelected = skor[id] === val;
               return (
-                <button 
-                  key={val} 
-                  disabled={isLocked} 
-                  onClick={() => onChange(id, val)} 
-                  className={`w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-xl text-base font-black transition-all ${
-                    isLocked ? "cursor-not-allowed opacity-90" : "active:scale-90"
-                  } ${
-                    isValSelected 
-                      ? "bg-emerald-600 text-white shadow-md border-2 border-emerald-700 scale-105" 
-                      : "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 border-2 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
-                  }`}
-                >
+                <button key={val} disabled={isLocked} onClick={() => onChange(id, val)} className={`w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-xl text-base font-black transition-all ${isLocked ? "cursor-not-allowed opacity-90" : "active:scale-90"} ${isValSelected ? "bg-emerald-600 text-white shadow-md border-2 border-emerald-700 scale-105" : "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 border-2 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"}`}>
                   {val}
                 </button>
               );
