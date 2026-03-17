@@ -18,6 +18,9 @@ export default function HalamanPenilaianSpesifik() {
   const [loading, setLoading] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [modal, setModal] = useState({ isOpen: false, type: "", title: "", message: "" });
+  
+  // ✅ STATE BARU: Untuk nampilin Modal Konfirmasi sebelum dikunci
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -72,12 +75,27 @@ export default function HalamanPenilaianSpesifik() {
     return Math.round(total * 10) / 10;
   };
 
-  const handleSimpan = async () => {
+  // ✅ FUNGSI 1: Mencegat tombol "Kirim Skor" untuk ngecek kosong tidaknya & nampilin Modal
+  const handleKlikSimpan = () => {
     if (isLocked) return;
     const nilaiAkhir = hitungSkorAkhir();
-    if (nilaiAkhir === 0) return setModal({ isOpen: true, type: "error", title: "Form Kosong", message: "Isi minimal satu indikator penilaian." });
+    
+    if (nilaiAkhir === 0) {
+      return setModal({ isOpen: true, type: "error", title: "Form Kosong", message: "Isi minimal satu indikator penilaian sebelum menyimpan." });
+    }
+    
+    // Kalau nilai ada isinya, munculin modal konfirmasi!
+    setShowConfirmModal(true);
+  };
 
+  // ✅ FUNGSI 2: Mengeksekusi penyimpanan secara permanen (Dipanggil dari dalam Modal)
+  const eksekusiSimpanPermanen = async () => {
+    setShowConfirmModal(false); // Tutup modalnya dulu
+    if (isLocked) return;
+    
+    const nilaiAkhir = hitungSkorAkhir();
     setLoading(true);
+
     try {
       const res = await fetch("/api/juri/simpan-nilai", {
         method: "POST",
@@ -92,14 +110,18 @@ export default function HalamanPenilaianSpesifik() {
         setModal({ isOpen: true, type: "error", title: "Gagal", message: err.error });
         if (res.status === 403) setIsLocked(true);
       }
-    } catch (e) { setModal({ isOpen: true, type: "error", title: "Error", message: "Koneksi terputus." }); } 
-    finally { setLoading(false); }
+    } catch (e) { 
+      setModal({ isOpen: true, type: "error", title: "Error", message: "Koneksi terputus." }); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   if (!user) return null;
 
   return (
     <main className="w-full pb-32 pt-[90px] md:pt-[100px] relative transition-colors duration-300">
+      
       <ModalNotif isOpen={modal.isOpen} type={modal.type as any} title={modal.title} message={modal.message} onClose={() => setModal({ ...modal, isOpen: false })} />
 
       <div className="max-w-3xl mx-auto px-4 space-y-6">
@@ -114,7 +136,7 @@ export default function HalamanPenilaianSpesifik() {
           </div>
         </div>
 
-        {/* TINGKAT WILAYAH */}
+        {/* TINGKAT WILAYAH (Khusus Juri DLH) */}
         {user.role === "juri_dlh" && (
           <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
             <label className="block text-sm font-extrabold text-slate-700 dark:text-slate-300 mb-3">Tingkat Wilayah Binaan:</label>
@@ -126,14 +148,15 @@ export default function HalamanPenilaianSpesifik() {
         )}
 
         {isLocked && (
-          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-5 rounded-3xl flex items-center gap-3">
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-5 rounded-3xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-500">
             <span className="text-2xl">🛡️</span>
             <p className="text-xs font-bold text-amber-800 dark:text-amber-400">Arsip Terkunci. Penilaian ini sudah diamankan secara permanen.</p>
           </div>
         )}
 
         {/* INDIKATOR PENILAIAN */}
-        <div className={`space-y-6 ${isLocked ? 'opacity-80' : ''}`}>
+        <div className={`space-y-6 transition-opacity duration-300 ${isLocked ? 'opacity-80 pointer-events-none' : ''}`}>
+          {/* ... (Semua kodingan Kategori I sampai V tetap sama persis tidak aku ubah) ... */}
           {user.role === "juri_dlh" && (
             <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-emerald-100 dark:border-emerald-900/20">
               <h2 className="text-lg font-extrabold text-slate-800 dark:text-white mb-6 border-b dark:border-slate-800 pb-3">Kategori I: Pengelolaan Sampah</h2>
@@ -191,20 +214,60 @@ export default function HalamanPenilaianSpesifik() {
       </div>
 
       {/* PANEL BAWAH FIXED */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-4 shadow-[0_-15px_30px_rgba(0,0,0,0.08)] z-20 flex justify-between items-center px-6 rounded-t-3xl">
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-4 shadow-[0_-15px_30px_rgba(0,0,0,0.08)] z-20 flex justify-between items-center px-6 rounded-t-3xl transition-colors duration-300">
         <div>
           <p className="text-[10px] font-bold text-slate-400 uppercase">Kontribusi Nilai</p>
           <p className="text-3xl font-black text-emerald-600 leading-none mt-1">{hitungSkorAkhir()}</p>
         </div>
         <div className="flex gap-2">
           {!isLocked && (
-            <button className="bg-slate-100 dark:bg-slate-800 text-slate-600 p-4 rounded-2xl" onClick={() => setSkor({})}>🗑️</button>
+            <button className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 p-4 rounded-2xl transition-colors" onClick={() => setSkor({})}>🗑️</button>
           )}
-          <button onClick={handleSimpan} disabled={loading || isLocked} className={`px-8 font-black py-4 rounded-2xl shadow-xl transition-all text-sm uppercase tracking-widest ${isLocked ? "bg-slate-200 dark:bg-slate-800 text-slate-400" : "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 active:scale-95"}`}>
-            {isLocked ? "TERKUNCI" : "Kirim Skor"}
+          {/* ✅ TOMBOL INI SEKARANG MANGGIL handleKlikSimpan */}
+          <button onClick={handleKlikSimpan} disabled={loading || isLocked} className={`px-8 font-black py-4 rounded-2xl shadow-xl transition-all text-sm uppercase tracking-widest ${isLocked ? "bg-slate-200 dark:bg-slate-800 text-slate-400" : "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:scale-[1.02] active:scale-95"}`}>
+            {loading ? "Menyimpan..." : isLocked ? "TERKUNCI" : "Kirim Skor"}
           </button>
         </div>
       </div>
+
+      {/* ================= MODAL KONFIRMASI KUNCI NILAI ================= */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2rem] shadow-2xl max-w-sm w-full border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in duration-200">
+            
+            <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 text-amber-500 dark:text-amber-400 rounded-full flex items-center justify-center mx-auto mb-5 text-4xl shadow-inner border border-amber-200 dark:border-amber-800/50">
+              ⚠️
+            </div>
+            
+            <h3 className="text-xl md:text-2xl font-black text-center text-slate-800 dark:text-white mb-2 tracking-tight">
+              Kunci Nilai Permanen?
+            </h3>
+            
+            <p className="text-xs md:text-sm text-center text-slate-500 dark:text-slate-400 mb-8 font-medium leading-relaxed">
+              Pastikan nilai sudah sesuai dengan kondisi di lapangan. Skor <strong className="text-emerald-600 dark:text-emerald-400 text-base">{hitungSkorAkhir()}</strong> yang sudah dikirim <span className="text-red-500 dark:text-red-400 font-bold bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded">tidak dapat diubah</span>.
+            </p>
+            
+            <div className="flex gap-3">
+              <button 
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                className="flex-1 py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95"
+              >
+                Cek Lagi
+              </button>
+              <button 
+                type="button"
+                onClick={eksekusiSimpanPermanen}
+                className="flex-1 py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest text-white bg-amber-500 hover:bg-amber-600 shadow-lg shadow-amber-500/30 transition-all active:scale-95 flex justify-center items-center gap-2"
+              >
+                🔒 Kunci
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </main>
   );
 }
@@ -225,7 +288,7 @@ function ItemSoal({ id, judul, options, skor, onChange, isLocked }: any) {
       {activeIndex !== -1 && (
         <div className="mt-4 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800/50 p-4 rounded-2xl flex flex-wrap gap-2.5">
           {Array.from({ length: options[activeIndex].max - options[activeIndex].min + 1 }, (_, i) => options[activeIndex].min + i).map((val) => (
-            <button key={val} disabled={isLocked} onClick={() => onChange(id, val)} className={`w-11 h-11 flex items-center justify-center rounded-xl font-black transition-all ${skor[id] === val ? "bg-emerald-600 text-white scale-110" : "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 border-2 border-emerald-200 dark:border-emerald-800"}`}>{val}</button>
+            <button key={val} disabled={isLocked} onClick={() => onChange(id, val)} className={`w-11 h-11 flex items-center justify-center rounded-xl font-black transition-all ${skor[id] === val ? "bg-emerald-600 text-white scale-110 shadow-md" : "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 border-2 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/50"}`}>{val}</button>
           ))}
         </div>
       )}
