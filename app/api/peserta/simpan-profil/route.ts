@@ -21,6 +21,7 @@ export async function POST(req: Request) {
       { username: data.username },
       {
         namaInstansi: data.namaBank, // Update nama instansi sekalian
+        namaBankSampah: data.namaBankSampah,
         alamat: data.alamat,
         koordinat: data.koordinat,
         waktuPendirian: data.waktuPendirian,

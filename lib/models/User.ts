@@ -15,6 +15,7 @@ const userSchema = new mongoose.Schema({
   // 2. DATA PROFIL LENGKAP PESERTA (Baru Digabung!)
   // =======================================
   // Kita set default "" (string kosong) agar tidak error saat Admin/Juri login
+  namaBankSampah: { type: String, default: "" },
   alamat: { type: String, default: "" },
   koordinat: { type: String, default: "" },
   waktuPendirian: { type: String, default: "" },

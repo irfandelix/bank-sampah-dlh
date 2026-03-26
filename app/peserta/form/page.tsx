@@ -14,6 +14,7 @@ export default function FormProfilPeserta() {
   
   // ✅ STATE FORM (Nomor Telepon Sudah Kembali!)
   const [formData, setFormData] = useState({
+    namaBankSampah: "", // 👈 Ini tambahan barunya!
     namaKetua: "",
     noTelepon: "", // 👈 Ini dia yang tadi ngilang hehe
     tahunBerdiri: "",
