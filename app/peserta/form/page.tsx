@@ -106,6 +106,12 @@ export default function FormProfilPeserta() {
               <input type="text" disabled value={user?.namaInstansi || ""} className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 px-5 py-4 rounded-2xl font-bold cursor-not-allowed" />
             </div>
 
+            {/* NAMA UNIT BANK SAMPAH (BARU! BISA DIEDIT) ✅ */}
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Nama Unit Bank Sampah</label>
+              <input required type="text" value={formData.namaBankSampah} onChange={(e) => setFormData({...formData, namaBankSampah: e.target.value})} className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 px-5 py-4 rounded-2xl font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all" placeholder="Contoh: Bank Sampah Zigi Zaga" />
+            </div>
+
             {/* NAMA KETUA (SEPARUH) */}
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Nama Ketua / Direktur</label>
