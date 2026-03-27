@@ -67,7 +67,7 @@ export default function FormProfilPeserta() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch("/api/peserta/profil", {
+      const res = await fetch("/api/peserta/simpan-profil", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: user.username, ...formData })
