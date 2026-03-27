@@ -35,8 +35,8 @@ export default function FormProfilPeserta() {
   }, [router]);
 
   const fetchProfil = async (username: string) => {
-    try {
-      const res = await fetch(`/api/peserta/profil?username=${username}`);
+    try {  // 👈 INI DIA YANG TADI NGGAK SENGAJA KEHAPUS WKWKWK
+      const res = await fetch(`/api/peserta/simpan-profil?username=${username}`);
       if (res.ok) {
         const data = await res.json();
         if (data) setFormData({ ...formData, ...data });
