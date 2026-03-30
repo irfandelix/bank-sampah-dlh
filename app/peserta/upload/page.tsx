@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import ModalNotif from "@/components/ModalNotif"; 
 import React from "react";
+import imageCompression from "browser-image-compression";
 
 const DAFTAR_BERKAS = [
   { kategori: "Kategori I: Pengelolaan Sampah", items: [ { id: "Kat. I No. 1", label: "1. Laporan hasil penimbangan berdasarkan jenis sampah", format: ".pdf, .jpg, .png" }, { id: "Kat. I No. 2", label: "2. SK, Laporan Jml Nasabah, Laporan Jml KK RT/RW", format: ".pdf" }, { id: "Kat. I No. 3", label: "3. Laporan kegiatan tiap penimbangan (jml nasabah hadir)", format: ".pdf, .jpg, .png" }, { id: "Kat. I No. 4", label: "4. Laporan Nasabah, penimbangan, neraca, buku tabungan & tamu", format: ".pdf, .jpg, .png" }, { id: "Kat. I No. 5", label: "5. Foto/Dokumentasi kegiatan, buku catatan/laporan", format: ".pdf, .jpg, .png" }, { id: "Kat. I No. 6", label: "6. Pencatatan sampah organik (Foto/Buku Catatan)", format: ".jpg, .png" }, { id: "Kat. I No. 7", label: "7. Surat pengantar/Screenshot laporan (Japri/Grup)", format: ".pdf, .jpg, .png" } ] },
@@ -22,6 +23,9 @@ export default function FormUploadPeserta() {
   
   const [isWaktuHabis, setIsWaktuHabis] = useState(false);
   const [teksDeadline, setTeksDeadline] = useState("Memuat waktu...");
+  
+  // State untuk animasi tombol saat mengkompresi gambar
+  const [isCompressing, setIsCompressing] = useState<string | null>(null);
 
   useEffect(() => {
     const savedUser = sessionStorage.getItem("user");
@@ -55,13 +59,55 @@ export default function FormUploadPeserta() {
   const totalTerpenuhi = DAFTAR_BERKAS.flatMap(k => k.items).filter(item => files[item.id] || !!sudahAdaDiDrive[item.id]).length;
   const progressPersen = (totalSyarat === 0) ? 0 : (totalTerpenuhi / totalSyarat) * 100;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, idBerkas: string) => {
+  // =========================================================================
+  // FUNGSI UTAMA: PENGECEKAN PDF 4MB & KOMPRESI GAMBAR OTOMATIS
+  // =========================================================================
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, idBerkas: string) => {
     if (isWaktuHabis) return setModal({ isOpen: true, type: "error", title: "Waktu Habis", message: "Batas waktu pengunggahan telah ditutup." });
     if (sudahAdaDiDrive[idBerkas]) return; 
 
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.size > 5 * 1024 * 1024) return setModal({ isOpen: true, type: "error", title: "Terlalu Besar", message: "Maksimal file 5 MB." });
+      let file = e.target.files[0];
+      
+      // 🛑 KHUSUS PDF: Tolak jika lebih dari 4 MB (Aman dari Vercel 4.5MB Payload)
+      if (file.type === "application/pdf" && file.size > 4 * 1024 * 1024) {
+        return setModal({ 
+          isOpen: true, 
+          type: "error", 
+          title: "File PDF Terlalu Besar!", 
+          message: `Ukuran PDF Anda ${(file.size / 1024 / 1024).toFixed(2)} MB. Maksimal hanya boleh 4 MB. Silakan kompres dulu PDF Anda di web gratis seperti ilovepdf.com, lalu coba lagi.` 
+        });
+      }
+
+      // 🔄 KHUSUS GAMBAR: Kompres otomatis jadi di bawah 1 MB
+      if (file.type.startsWith("image/")) {
+        try {
+          setIsCompressing(idBerkas); 
+          
+          const options = {
+            maxSizeMB: 0.9,          // Target ukuran maksimal 0.9 MB
+            maxWidthOrHeight: 1600,  // Resolusi tetap aman dibaca
+            useWebWorker: true,
+            fileType: "image/jpeg"   // Format diringankan jadi JPG
+          };
+          
+          const compressedBlob = await imageCompression(file, options);
+          file = new File([compressedBlob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
+            type: "image/jpeg",
+            lastModified: Date.now(),
+          });
+          
+        } catch (error) {
+          console.error("Gagal kompresi:", error);
+          setModal({ isOpen: true, type: "error", title: "Gagal Kompres", message: "Sistem gagal memperkecil ukuran gambar. Silakan coba gambar lain." });
+          setIsCompressing(null);
+          return;
+        } finally {
+          setIsCompressing(null); 
+        }
+      }
+
+      // 💾 Simpan file yang sudah aman ke State
       setFiles(prev => ({ ...prev, [idBerkas]: file }));
     }
   };
@@ -130,16 +176,18 @@ export default function FormUploadPeserta() {
                   const linkDrive = sudahAdaDiDrive[item.id]; 
                   const exists = !!linkDrive;
                   const isSelected = !!files[item.id];
+                  const isThisCompressing = isCompressing === item.id;
 
                   return (
                     <div key={item.id} className={`p-5 rounded-2xl border-2 transition-all ${exists ? 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 opacity-60 grayscale' : isSelected ? 'border-emerald-500 bg-emerald-50/10' : 'border-slate-100 dark:border-slate-800 border-dashed'}`}>
                       <div className="flex flex-col lg:flex-row justify-between gap-4">
                         <div className="flex-1">
                           <h4 className={`font-bold text-sm flex gap-2 leading-tight ${exists ? 'text-slate-400' : 'dark:text-slate-200'}`}>
-                            <span>{exists ? "🔒" : isSelected ? "⏳" : "📄"}</span> {item.label}
+                            <span>{exists ? "🔒" : isSelected ? "✅" : "📄"}</span> {item.label}
                           </h4>
                           <div className="flex flex-wrap gap-2 mt-2">
                             <span className="text-[9px] font-black bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-1 rounded-md uppercase">{item.id}</span>
+                            <span className="text-[9px] font-black bg-slate-50 dark:bg-slate-800 text-slate-400 border dark:border-slate-700 px-2 py-1 rounded-md">{item.format}</span>
                             {exists && <span className="text-[9px] font-black bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 px-2 py-1 rounded-md uppercase">Tersimpan</span>}
                           </div>
                         </div>
@@ -151,18 +199,24 @@ export default function FormUploadPeserta() {
                              <div className="bg-red-50 dark:bg-red-900/20 text-red-400 dark:text-red-600 border border-red-200 dark:border-red-900/50 px-6 py-3 rounded-xl font-black text-[10px] uppercase cursor-not-allowed">Habis</div>
                           ) : (
                             <>
-                              {isSelected && <button onClick={() => { const nf = {...files}; delete nf[item.id]; setFiles(nf); }} className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-4 py-3 rounded-xl font-black text-[10px] uppercase shadow-sm">Batal</button>}
+                              {isSelected && <button onClick={() => { const nf = {...files}; delete nf[item.id]; setFiles(nf); }} className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-4 py-3 rounded-xl font-black text-[10px] uppercase shadow-sm hover:bg-red-100 hover:text-red-600 transition-colors">Batal</button>}
                               <div className="relative">
-                                <input type="file" id={`up-${item.id}`} className="hidden" onChange={(e) => handleFileChange(e, item.id)} disabled={loading || isWaktuHabis} accept=".pdf,.jpg,.jpeg,.png" />
-                                <label htmlFor={`up-${item.id}`} className={`cursor-pointer font-black py-3 px-6 rounded-xl border text-[10px] uppercase transition-all shadow-sm block text-center ${isSelected ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:scale-[1.02]'}`}>
-                                  {isSelected ? "Siap Kirim" : "Pilih File"}
+                                <input type="file" id={`up-${item.id}`} className="hidden" onChange={(e) => handleFileChange(e, item.id)} disabled={loading || isWaktuHabis || isThisCompressing} accept=".pdf,.jpg,.jpeg,.png" />
+                                
+                                <label htmlFor={`up-${item.id}`} className={`cursor-pointer font-black py-3 px-6 rounded-xl border text-[10px] uppercase transition-all shadow-sm block text-center ${isThisCompressing ? 'bg-amber-500 text-white cursor-wait animate-pulse' : isSelected ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:scale-[1.02]'}`}>
+                                  {isThisCompressing ? "🔄 Mengecilkan..." : isSelected ? "Siap Kirim" : "Pilih File"}
                                 </label>
                               </div>
                             </>
                           )}
                         </div>
                       </div>
-                      {isSelected && !exists && <p className="mt-3 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">📎 {files[item.id].name}</p>}
+                      
+                      {isSelected && !exists && (
+                        <p className="mt-3 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 p-2 rounded-lg inline-block">
+                          📎 {files[item.id].name} <span className="text-emerald-500">({(files[item.id].size / 1024 / 1024).toFixed(2)} MB)</span>
+                        </p>
+                      )}
                     </div>
                   );
                 })}
@@ -177,9 +231,14 @@ export default function FormUploadPeserta() {
           <button 
             onClick={handleSubmit} 
             disabled={loading || Object.keys(files).length === 0} 
-            className={`w-full max-w-md font-black py-4 rounded-2xl shadow-lg uppercase text-[10px] tracking-[0.2em] transition-all ${loading ? 'bg-amber-50 text-white' : Object.keys(files).length === 0 ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed' : 'bg-emerald-600 text-white hover:scale-[1.02] active:scale-95'}`}
+            className={`w-full max-w-md font-black py-4 rounded-2xl shadow-lg uppercase text-[10px] tracking-[0.2em] transition-all flex justify-center items-center gap-2 ${loading ? 'bg-amber-500 text-white cursor-wait' : Object.keys(files).length === 0 ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'}`}
           >
-            {loading ? `⏳ MENGUNGGAH KE-${uploadIndex}...` : "🚀 SETOR DOKUMEN SEKARANG"}
+            {loading ? (
+               <>
+                 <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                 MENGUNGGAH FILE KE-{uploadIndex}...
+               </>
+            ) : "🚀 SETOR DOKUMEN SEKARANG"}
           </button>
         </div>
       )}
