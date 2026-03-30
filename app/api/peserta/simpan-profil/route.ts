@@ -76,7 +76,7 @@ export async function POST(req: Request) {
         namaKetua: data.namaKetua,
         noHp: data.noTelepon                // 👈 Nangkep dari form
       },
-      { new: true } 
+      { returnDocument: 'after' } 
     );
 
     return NextResponse.json({ message: "Profil berhasil disimpan!", data: profilDisimpan }, { status: 200 });
