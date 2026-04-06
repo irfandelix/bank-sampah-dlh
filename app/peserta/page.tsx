@@ -8,8 +8,12 @@ export default function DashboardPeserta() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   
-  // ✅ STATE BARU: Untuk nyimpen profil lengkap dari database
+  // State untuk nyimpen profil lengkap dari database
   const [profilLengkap, setProfilLengkap] = useState<any>(null);
+  
+  // ✅ STATE BARU: Untuk ngitung jumlah berkas yang udah diupload
+  const [berkasTerkumpul, setBerkasTerkumpul] = useState<number>(0);
+  const TOTAL_BERKAS = 19; // Sesuai total syarat di form upload
 
   useEffect(() => {
     const savedUser = sessionStorage.getItem("user");
@@ -18,15 +22,15 @@ export default function DashboardPeserta() {
     } else {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
-      // Panggil fungsi untuk ambil profil terbaru
+      
+      // Panggil 2 fungsi sekaligus pas halaman dibuka
       ambilDataProfil(parsedUser.username);
+      cekKelengkapanBerkas(parsedUser.namaInstansi || parsedUser.username);
     }
   }, [router]);
 
-  // ✅ FUNGSI BARU: Nanya ke database profil terbarunya
   const ambilDataProfil = async (username: string) => {
     try {
-      // 👇🏻 INI DIA YANG DIBENERIN! UDAH NGARAH KE simpan-profil 👇🏻
       const res = await fetch(`/api/peserta/simpan-profil?username=${username}`);
       if (res.ok) {
         const data = await res.json();
@@ -34,6 +38,25 @@ export default function DashboardPeserta() {
       }
     } catch (err) {
       console.error("Gagal mengambil profil terbaru", err);
+    }
+  };
+
+  // ✅ FUNGSI BARU: Nanya ke Google Drive udah berapa berkas yang masuk
+  const cekKelengkapanBerkas = async (namaPeserta: string) => {
+    try {
+      const res = await fetch("/api/peserta/cek-berkas", {
+        method: "POST",
+        body: JSON.stringify({ namaPeserta }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.berkasTerisi) {
+          // Hitung ada berapa ID berkas yang udah tersimpan
+          setBerkasTerkumpul(Object.keys(data.berkasTerisi).length);
+        }
+      }
+    } catch (err) {
+      console.error("Gagal cek kelengkapan berkas", err);
     }
   };
 
@@ -46,17 +69,15 @@ export default function DashboardPeserta() {
         {/* BANNER SELAMAT DATANG */}
         <div className="bg-white dark:bg-slate-900 p-8 md:p-10 rounded-[2.5rem] shadow-sm border border-slate-200 dark:border-slate-800 relative overflow-hidden transition-colors">
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50 dark:bg-emerald-900/10 rounded-full blur-3xl -mr-20 -mt-20 opacity-60"></div>
-          <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             
             <div>
               <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-2">Selamat Datang,</p>
               
-              {/* ✅ LOGIKA PINTAR: Nampilin Nama Bank Sampah kalau ada, kalau nggak ada pakai nama Kecamatan */}
               <h2 className="text-3xl md:text-4xl font-black text-slate-800 dark:text-white tracking-tight mb-2">
                 {profilLengkap?.namaBankSampah ? profilLengkap.namaBankSampah : user.namaInstansi || user.username}
               </h2>
               
-              {/* ✅ Menampilkan asal kecamatan kalau nama bank sampah sudah ada */}
               {profilLengkap?.namaBankSampah && (
                 <p className="inline-flex items-center px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest border border-slate-200 dark:border-slate-700 mt-2">
                   📍 {user.namaInstansi}
@@ -64,9 +85,19 @@ export default function DashboardPeserta() {
               )}
             </div>
 
-            {/* Label Status KelKelengkapan Profil */}
-            <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border ${profilLengkap?.namaBankSampah ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/30' : 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/30'} shadow-sm`}>
-              {profilLengkap?.namaBankSampah ? "✅ Profil Terisi" : "⚠️ Profil Belum Lengkap"}
+            {/* ✅ DUA LABEL STATUS (PROFIL & BERKAS) */}
+            <div className="flex flex-col gap-2 w-full md:w-auto">
+              {/* Status Profil */}
+              <div className={`px-4 py-2 rounded-xl text-[10px] text-center font-black uppercase tracking-widest border ${profilLengkap?.namaBankSampah ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/30' : 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/30'} shadow-sm`}>
+                {profilLengkap?.namaBankSampah ? "✅ Profil Terisi" : "⚠️ Profil Belum Lengkap"}
+              </div>
+
+              {/* Status Berkas */}
+              <div className={`px-4 py-2 rounded-xl text-[10px] text-center font-black uppercase tracking-widest border ${berkasTerkumpul === TOTAL_BERKAS ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800/30' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800/30'} shadow-sm`}>
+                {berkasTerkumpul === TOTAL_BERKAS 
+                  ? `✅ Berkas Lengkap (${berkasTerkumpul}/${TOTAL_BERKAS})` 
+                  : `⚠️ Berkas (${berkasTerkumpul}/${TOTAL_BERKAS})`}
+              </div>
             </div>
 
           </div>
