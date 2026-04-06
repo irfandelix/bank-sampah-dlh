@@ -26,7 +26,8 @@ export default function DashboardPeserta() {
   // ✅ FUNGSI BARU: Nanya ke database profil terbarunya
   const ambilDataProfil = async (username: string) => {
     try {
-      const res = await fetch(`/api/peserta/profil?username=${username}`);
+      // 👇🏻 INI DIA YANG DIBENERIN! UDAH NGARAH KE simpan-profil 👇🏻
+      const res = await fetch(`/api/peserta/simpan-profil?username=${username}`);
       if (res.ok) {
         const data = await res.json();
         setProfilLengkap(data);
@@ -57,13 +58,13 @@ export default function DashboardPeserta() {
               
               {/* ✅ Menampilkan asal kecamatan kalau nama bank sampah sudah ada */}
               {profilLengkap?.namaBankSampah && (
-                <p className="inline-flex items-center px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest border border-slate-200 dark:border-slate-700">
+                <p className="inline-flex items-center px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest border border-slate-200 dark:border-slate-700 mt-2">
                   📍 {user.namaInstansi}
                 </p>
               )}
             </div>
 
-            {/* Label Status Kelengkapan Profil */}
+            {/* Label Status KelKelengkapan Profil */}
             <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border ${profilLengkap?.namaBankSampah ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/30' : 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/30'} shadow-sm`}>
               {profilLengkap?.namaBankSampah ? "✅ Profil Terisi" : "⚠️ Profil Belum Lengkap"}
             </div>
