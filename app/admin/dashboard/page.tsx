@@ -189,15 +189,41 @@ export default function AdminDashboard() {
 
   const exportToExcel = () => {
     if (klasemen.length === 0) return setModal({ isOpen: true, type: "error", title: "Data Kosong", message: "Belum ada data klasemen untuk diexport." });
-    const dataExcel = klasemen.map((item, index) => ({
-      "Peringkat": index + 1, "Nama Bank Sampah": item.namaInstansi, "Kecamatan": item.kecamatan, "ID Login": item.username,
-      "Nilai DLH (40%)": Number(item.skorDLH || 0), "Nilai DKK (20%)": Number(item.skorDKK || 0), "Nilai BSI (25%)": Number(item.skorBSI || 0), "Nilai PMD (15%)": Number(item.skorPMD || 0), "Total Skor Adm": Number(item.skor || 0).toFixed(2), "Total Verlap": Number(item.nilai_verlap || 0).toFixed(2),
+    
+    // Kita urutkan dulu datanya berdasarkan ranking (Administrasi) sebelum di-export
+    const dataExcel = [...klasemen].sort((a,b) => (Number(b.skor) || 0) - (Number(a.skor) || 0)).map((item, index) => ({
+      "Peringkat": index + 1, 
+      "Nama Bank Sampah": item.namaInstansi, 
+      "Kecamatan": item.kecamatan, 
+      "ID Login": item.username,
+      "Tingkat": item.tingkat_verlap || "RW",
+      // --- NILAI ADMINISTRASI (JURI) ---
+      "Adm - DLH (40%)": Number(item.skorDLH || 0).toFixed(2),
+      "Adm - DKK (20%)": Number(item.skorDKK || 0).toFixed(2),
+      "Adm - BSI (25%)": Number(item.skorBSI || 0).toFixed(2),
+      "Adm - PMD (15%)": Number(item.skorPMD || 0).toFixed(2),
+      "TOTAL ADMINISTRASI": Number(item.skor || 0).toFixed(2),
+      // --- NILAI VERIFIKASI LAPANGAN ---
+      "TOTAL VERLAP": Number(item.nilai_verlap || 0).toFixed(2),
+      // --- PERBANDINGAN ---
+      "SELISIH (Adm-Verlap)": (Number(item.skor || 0) - Number(item.nilai_verlap || 0)).toFixed(2)
     }));
+
     const worksheet = XLSX.utils.json_to_sheet(dataExcel);
-    worksheet["!cols"] = [{ wch: 10 }, { wch: 35 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
+    
+    // Mengatur lebar kolom biar nggak mepet-mepet pas dibuka di Excel
+    worksheet["!cols"] = [
+      { wch: 10 }, { wch: 35 }, { wch: 20 }, { wch: 15 }, { wch: 10 },
+      { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 20 },
+      { wch: 20 }, { wch: 20 }
+    ];
+
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Hasil Evaluasi");
-    XLSX.writeFile(workbook, "Laporan_Klasemen_Bank_Sampah_Sragen_2026.xlsx");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Evaluasi 2026");
+    
+    // Nama file otomatis pakai tanggal hari ini biar rapi arsipnya
+    const date = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(workbook, `Laporan_Klasemen_Bank_Sampah_Sragen_${date}.xlsx`);
   };
 
   const handleExpandRow = async (namaInstansi: string) => {
@@ -253,25 +279,31 @@ export default function AdminDashboard() {
           })()}
         </div>
 
-          {/* PETA & KLASEMEN 2 TAB */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-            <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl md:rounded-[2.5rem] border border-slate-200 dark:border-slate-800 overflow-hidden h-[350px] md:h-[550px] relative shadow-sm">
-              {/* Trik: Ganti isi 'skor' otomatis ngikutin Tab yang lagi diklik */}
-              <PetaSragen 
-                dataKlasemen={klasemen.map(item => ({
-                  ...item,
-                  skor: tabKlasemen === "adm" ? item.skor : (item.nilai_verlap || 0)
-                }))} 
-                dataPeserta={profilPeserta} 
-              />
-              
-              {/* Indikator Mode Peta */}
-              <div className="absolute top-4 left-4 z-10 bg-white/90 dark:bg-slate-800/90 backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border border-slate-200 dark:border-slate-700 text-[9px] md:text-[10px] font-bold text-slate-600 dark:text-slate-300 tracking-widest uppercase shadow-sm flex items-center gap-2">
-                  <span>🗺️ Peta Sebaran</span>
-                  <span className={`px-2 py-0.5 rounded text-[8px] md:text-[9px] text-white shadow-inner ${tabKlasemen === 'adm' ? 'bg-amber-500' : 'bg-emerald-500'}`}>
-                    {tabKlasemen === 'adm' ? 'MODE: ADM' : 'MODE: VERLAP'}
-                  </span>
-              </div>
+        {/* PETA & KLASEMEN 2 TAB */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+          <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl md:rounded-[2.5rem] border border-slate-200 dark:border-slate-800 overflow-hidden h-[350px] md:h-[550px] relative shadow-sm">
+             <PetaSragen 
+               dataKlasemen={klasemen.map(item => ({
+                 ...item,
+                 skor: tabKlasemen === "adm" ? item.skor : (item.nilai_verlap || 0)
+               }))} 
+               dataPeserta={profilPeserta} 
+             />
+             <div className="absolute top-4 left-4 z-10 bg-white/90 dark:bg-slate-800/90 backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border border-slate-200 dark:border-slate-700 text-[9px] md:text-[10px] font-bold text-slate-600 dark:text-slate-300 tracking-widest uppercase shadow-sm flex items-center gap-2">
+                <span>🗺️ Peta Sebaran</span>
+                <span className={`px-2 py-0.5 rounded text-[8px] md:text-[9px] text-white shadow-inner ${tabKlasemen === 'adm' ? 'bg-amber-500' : 'bg-emerald-500'}`}>
+                  {tabKlasemen === 'adm' ? 'MODE: ADM' : 'MODE: VERLAP'}
+                </span>
+             </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 rounded-3xl md:rounded-[2.5rem] border border-slate-200 dark:border-slate-800 p-5 md:p-6 lg:col-span-1 h-[400px] md:h-[550px] flex flex-col overflow-hidden shadow-sm">
+            <div className="flex justify-between items-center mb-3 md:mb-4">
+               <h2 className="text-lg md:text-xl font-black text-slate-800 dark:text-white">Klasemen</h2>
+               <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 px-2.5 py-1 md:px-3 md:py-1 rounded-full border border-emerald-100 dark:border-emerald-800">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="text-[9px] md:text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase">Live</span>
+               </div>
             </div>
 
             {/* TAB SWITCHER KLASEMEN */}
