@@ -1,47 +1,47 @@
 import { NextResponse } from "next/server";
-import { connectMongoDB } from "@/lib/mongodb"; 
-import User from "@/lib/models/User"; 
+import { connectMongoDB } from "@/lib/mongodb"; // Pastikan path ini sesuai dengan file DB kamu
+import User from "@/lib/models/User"; // Pastikan path ini sesuai dengan model Mongoose kamu
 
 export async function POST(req: Request) {
   try {
-    // 1. Buka koneksi ke MongoDB
+    // 1. Buka gerbang ke MongoDB
     await connectMongoDB();
 
-    // 2. Tangkap data yang dikirim dari Pop-up form
+    // 2. Tangkap paket data dari Modal Dashboard tadi
     const body = await req.json();
-    const { username, verlapDLH, verlapDKK, verlapBSI, verlapPMD, nilai_verlap } = body;
+    const { username, nilai_verlap, detail_verlap, tingkat_verlap } = body;
 
+    // Pastikan ID/username ada
     if (!username) {
-      return NextResponse.json({ message: "ID Peserta tidak ditemukan!" }, { status: 400 });
+      return NextResponse.json({ error: "Username/ID Peserta tidak ditemukan!" }, { status: 400 });
     }
 
-    // 3. Update data peserta (User) di MongoDB
+    // 3. Cari peserta dan Update datanya di Database
     const updatedPeserta = await User.findOneAndUpdate(
-      { username: username }, // Cari berdasarkan username/ID
+      { username: username }, // Cari berdasarkan username
       { 
         $set: {
-          verlapDLH: verlapDLH,
-          verlapDKK: verlapDKK,
-          verlapBSI: verlapBSI,
-          verlapPMD: verlapPMD,
-          nilai_verlap: nilai_verlap
+          nilai_verlap: nilai_verlap,       // Total Skor Verlap (misal: 85.5)
+          detail_verlap: detail_verlap,     // Rekap ketikan per poin (JSON)
+          tingkat_verlap: tingkat_verlap    // "RT" atau "RW"
         } 
       },
-      { new: true } // Biar ngembaliin data yang udah paling update
+      { new: true } // Return data yang paling fresh
     );
 
+    // Kalau peserta nggak ketemu di database
     if (!updatedPeserta) {
-      return NextResponse.json({ message: "Peserta tidak ditemukan di database." }, { status: 404 });
+      return NextResponse.json({ error: "Data Bank Sampah tidak ditemukan di database." }, { status: 404 });
     }
 
-    // 4. Kirim jawaban sukses ke tampilan web
+    // 4. Kirim sinyal sukses balik ke Dashboard!
     return NextResponse.json({ 
-      message: "Data Verifikasi Lapangan berhasil disimpan!", 
+      message: "Data Verifikasi Lapangan sukses disimpan!", 
       data: updatedPeserta 
     }, { status: 200 });
 
   } catch (error) {
-    console.error("Error Simpan Verlap:", error);
-    return NextResponse.json({ message: "Terjadi kesalahan di server." }, { status: 500 });
+    console.error("Error API Simpan Verlap:", error);
+    return NextResponse.json({ error: "Gagal menyimpan data ke server." }, { status: 500 });
   }
 }

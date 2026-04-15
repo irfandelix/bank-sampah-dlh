@@ -44,6 +44,8 @@ const userSchema = new mongoose.Schema({
   verlapBSI: { type: Number, default: 0 },
   verlapPMD: { type: Number, default: 0 },
   nilai_verlap: { type: Number, default: 0 },
+  detail_verlap: { type: Object, default: {} }, // Pakai Object biar bisa nyimpen rincian {"1.1": 15, "1.2": 20, ...}
+  tingkat_verlap: { type: String, default: "RW" },
 
 }, { timestamps: true });
 
