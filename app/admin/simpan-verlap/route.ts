@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { connectMongoDB } from "@/lib/mongodb"; // Pastikan path ini sesuai dengan file DB kamu
-import User from "@/lib/models/User"; // Pastikan path ini sesuai dengan model Mongoose kamu
+import { connectMongoDB } from "@/lib/mongodb"; // Sesuaikan lokasi file koneksi DB kamu
+import User from "@/lib/models/User"; // Sesuaikan lokasi model Mongoose kamu
 
 export async function POST(req: Request) {
   try {
@@ -18,15 +18,15 @@ export async function POST(req: Request) {
 
     // 3. Cari peserta dan Update datanya di Database
     const updatedPeserta = await User.findOneAndUpdate(
-      { username: username }, // Cari berdasarkan username
+      { username: username }, // Cari peserta berdasarkan username
       { 
         $set: {
           nilai_verlap: nilai_verlap,       // Total Skor Verlap (misal: 85.5)
-          detail_verlap: detail_verlap,     // Rekap ketikan per poin (JSON)
-          tingkat_verlap: tingkat_verlap    // "RT" atau "RW"
+          detail_verlap: detail_verlap,     // Rekap ketikan per poin (JSON object)
+          tingkat_verlap: tingkat_verlap    // Tingkat "RT" atau "RW"
         } 
       },
-      { new: true } // Return data yang paling fresh
+      { new: true } // Minta database ngembaliin data yang paling baru
     );
 
     // Kalau peserta nggak ketemu di database
