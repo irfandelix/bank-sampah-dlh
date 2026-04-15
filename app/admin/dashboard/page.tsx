@@ -46,60 +46,82 @@ export default function AdminDashboard() {
   const prevKlasemenRef = useRef<any[]>([]);
   const [changedIds, setChangedIds] = useState<string[]>([]);
 
-  // ================= STATE & FUNGSI UNTUK MODAL VERLAP (MONGODB) =================
+  // ================= STATE & FUNGSI MODAL VERLAP (MANUAL INPUT FULL INDIKATOR) =================
   const [modalVerlap, setModalVerlap] = useState({
     isOpen: false,
     username: "",
     namaInstansi: "",
-    dlh: "",
-    dkk: "",
-    bsi: "",
-    pmd: "",
     isSaving: false
   });
+  
+  const [skorVerlap, setSkorVerlap] = useState<Record<string, number>>({});
+  const [tingkatVerlap, setTingkatVerlap] = useState<"RT" | "RW">("RW");
 
   const bukaModalVerlap = (peserta: any) => {
+    // Reset form setiap kali modal dibuka, kalau mau narik data lama (edit) sesuaikan di sini
+    setSkorVerlap(peserta.detail_verlap || {}); 
+    setTingkatVerlap(peserta.tingkat_verlap || "RW");
     setModalVerlap({
       isOpen: true,
       username: peserta.username,
       namaInstansi: peserta.namaInstansi,
-      dlh: peserta.verlapDLH || "", 
-      dkk: peserta.verlapDKK || "",
-      bsi: peserta.verlapBSI || "",
-      pmd: peserta.verlapPMD || "",
       isSaving: false
     });
   };
 
+  const handleInputVerlap = (id: string, value: string) => {
+    const numValue = value === "" ? 0 : Number(value);
+    setSkorVerlap(prev => ({ ...prev, [id]: numValue }));
+  };
+
+  const hitungSkorAkhirVerlap = () => {
+    // DLH (Kategori 1)
+    const cat1 = (skorVerlap["1.1"] || 0) + (skorVerlap["1.2"] || 0) + (skorVerlap["1.3"] || 0) + (skorVerlap["1.4"] || 0) + (skorVerlap["1.5"] || 0) + (skorVerlap["1.6"] || 0) + (skorVerlap["1.7"] || 0);
+    const cat1Max = tingkatVerlap === "RT" ? 110 : 150;
+    const skorDLH = (cat1 / cat1Max) * 40;
+
+    // DKK (Kategori 2)
+    const cat2 = (skorVerlap["2.1"] || 0) + (skorVerlap["2.2"] || 0) + (skorVerlap["2.3"] || 0) + (skorVerlap["2.4"] || 0);
+    const skorDKK = (cat2 / 40) * 20;
+
+    // BSI (Kategori 3)
+    const cat3 = (skorVerlap["3.1"] || 0) + (skorVerlap["3.2"] || 0) + (skorVerlap["3.3"] || 0) + (skorVerlap["3.4"] || 0) + (skorVerlap["3.5"] || 0) + (skorVerlap["3.6"] || 0);
+    const skorBSI = (cat3 / 80) * 25;
+
+    // PMD (Kategori 4 & 5)
+    const skorPMD = (((skorVerlap["4.1"] || 0) / 20) * 7.5) + (((skorVerlap["5.1"] || 0) / 20) * 7.5);
+
+    const total = skorDLH + skorDKK + skorBSI + skorPMD;
+    return Math.round(total * 10) / 10 || 0;
+  };
+
   const handleSimpanVerlap = async () => {
+    const nilaiAkhir = hitungSkorAkhirVerlap();
+    if (nilaiAkhir === 0) return setModal({ isOpen: true, type: "error", title: "Form Kosong", message: "Isi minimal satu indikator penilaian." });
+
     setModalVerlap({ ...modalVerlap, isSaving: true });
     
-    // Hitung rata-rata
-    const nilaiAkhirVerlap = ((Number(modalVerlap.dlh) + Number(modalVerlap.dkk) + Number(modalVerlap.bsi) + Number(modalVerlap.pmd)) / 4).toFixed(1);
-
     try {
       const res = await fetch("/api/admin/simpan-verlap", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: modalVerlap.username,
-          verlapDLH: modalVerlap.dlh,
-          verlapDKK: modalVerlap.dkk,
-          verlapBSI: modalVerlap.bsi,
-          verlapPMD: modalVerlap.pmd,
-          nilai_verlap: nilaiAkhirVerlap
+          nilai_verlap: nilaiAkhir,
+          detail_verlap: skorVerlap, // Simpan logikanya dalam bentuk JSON
+          tingkat_verlap: tingkatVerlap
         })
       });
 
       if (res.ok) {
-        setModal({ isOpen: true, type: "success", title: "Berhasil!", message: "Data Verifikasi Lapangan berhasil disimpan." });
+        setModal({ isOpen: true, type: "success", title: "Berhasil!", message: `Data Verlap (${nilaiAkhir}) berhasil disimpan.` });
         setModalVerlap({ ...modalVerlap, isOpen: false });
-        fetchDashboardData(false); // Refresh tabel klasemen
+        fetchDashboardData(false);
       } else {
         throw new Error("Gagal menyimpan ke database");
       }
     } catch (err: any) {
-      setModal({ isOpen: true, type: "error", title: "Gagal Simpan", message: err.message || "Terjadi kesalahan jaringan." });
+      setModal({ isOpen: true, type: "error", title: "Gagal Simpan", message: err.message || "Terjadi kesalahan." });
       setModalVerlap({ ...modalVerlap, isSaving: false });
     }
   };
@@ -158,10 +180,10 @@ export default function AdminDashboard() {
     if (klasemen.length === 0) return setModal({ isOpen: true, type: "error", title: "Data Kosong", message: "Belum ada data klasemen untuk diexport." });
     const dataExcel = klasemen.map((item, index) => ({
       "Peringkat": index + 1, "Nama Bank Sampah": item.namaInstansi, "Kecamatan": item.kecamatan, "ID Login": item.username,
-      "Nilai DLH (40%)": Number(item.skorDLH || 0), "Nilai DKK (20%)": Number(item.skorDKK || 0), "Nilai BSI (25%)": Number(item.skorBSI || 0), "Nilai PMD (15%)": Number(item.skorPMD || 0), "Total Skor": Number(item.skor || 0).toFixed(2),
+      "Nilai DLH (40%)": Number(item.skorDLH || 0), "Nilai DKK (20%)": Number(item.skorDKK || 0), "Nilai BSI (25%)": Number(item.skorBSI || 0), "Nilai PMD (15%)": Number(item.skorPMD || 0), "Total Skor Adm": Number(item.skor || 0).toFixed(2), "Total Verlap": Number(item.nilai_verlap || 0).toFixed(2),
     }));
     const worksheet = XLSX.utils.json_to_sheet(dataExcel);
-    worksheet["!cols"] = [{ wch: 10 }, { wch: 35 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
+    worksheet["!cols"] = [{ wch: 10 }, { wch: 35 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Hasil Evaluasi");
     XLSX.writeFile(workbook, "Laporan_Klasemen_Bank_Sampah_Sragen_2026.xlsx");
@@ -367,7 +389,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* TABEL AKUN PESERTA (SUDAH DIUBAH JADI 2 BARIS + TOMBOL VERLAP) */}
+        {/* TABEL AKUN PESERTA (2 BARIS + TOMBOL VERLAP) */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl md:rounded-[2.5rem] border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm mt-6">
           <div className="p-5 md:p-8 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center">
             <div>
@@ -451,60 +473,112 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* ================= MODAL FORM VERIFIKASI LAPANGAN ================= */}
+      {/* ================= MODAL FORM VERIFIKASI LAPANGAN (FULL KUESIONER) ================= */}
       {modalVerlap.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-slate-50 dark:bg-slate-900 rounded-3xl w-full max-w-4xl max-h-[90vh] border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden">
             
             {/* Header Modal */}
-            <div className="bg-emerald-500 p-5 text-center relative">
+            <div className="bg-emerald-600 p-5 text-center relative shrink-0">
               <button 
                 onClick={() => setModalVerlap({ ...modalVerlap, isOpen: false })}
                 className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-white/20 hover:bg-white/40 text-white rounded-full transition-colors"
               >
                 ✕
               </button>
-              <h3 className="font-black text-white text-lg tracking-wide uppercase">Form Verlap</h3>
-              <p className="text-emerald-50 text-xs font-medium mt-1">{modalVerlap.namaInstansi}</p>
+              <h3 className="font-black text-white text-lg tracking-wide uppercase">REKAP VERIFIKASI LAPANGAN</h3>
+              <p className="text-emerald-100 text-xs font-bold mt-1">{modalVerlap.namaInstansi}</p>
             </div>
 
-            {/* Isi Form 4 Juri */}
-            <div className="p-6 space-y-4">
-              {['dlh', 'dkk', 'bsi', 'pmd'].map((instansi) => (
-                <div key={instansi} className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
-                  <label className="font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest text-xs flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                    Nilai Juri {instansi}
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={(modalVerlap as any)[instansi]}
-                    onChange={(e) => setModalVerlap({ ...modalVerlap, [instansi]: e.target.value })}
-                    className="w-20 px-3 py-1.5 text-center font-black text-emerald-700 dark:text-emerald-400 bg-white dark:bg-slate-900 border-2 border-emerald-200 dark:border-emerald-800 rounded-lg focus:border-emerald-500 outline-none transition-colors"
-                    placeholder="0"
-                  />
+            {/* Isi Scrollable */}
+            <div className="p-4 md:p-6 overflow-y-auto custom-scrollbar-light flex-1 space-y-6">
+              
+              {/* PILIHAN TINGKAT (Buat Rumus DLH) */}
+              <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-widest">Tingkat Wilayah Binaan:</label>
+                <div className="flex gap-2">
+                  <button onClick={() => setTingkatVerlap("RT")} className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${tingkatVerlap === "RT" ? "bg-emerald-600 text-white shadow-md" : "bg-slate-100 dark:bg-slate-700 text-slate-500"}`}>Tingkat RT</button>
+                  <button onClick={() => setTingkatVerlap("RW")} className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${tingkatVerlap === "RW" ? "bg-emerald-600 text-white shadow-md" : "bg-slate-100 dark:bg-slate-700 text-slate-500"}`}>Tingkat RW / Desa</button>
                 </div>
-              ))}
+              </div>
 
-              {/* Hitung Total Otomatis */}
-              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center px-2">
-                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Total Rata-Rata:</span>
-                <span className="text-2xl font-black text-emerald-600">
-                  {((Number(modalVerlap.dlh) + Number(modalVerlap.dkk) + Number(modalVerlap.bsi) + Number(modalVerlap.pmd)) / 4 || 0).toFixed(1)}
-                </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                
+                {/* KOLOM KIRI (DLH & DKK) */}
+                <div className="space-y-6">
+                  {/* DLH */}
+                  <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <h4 className="font-black text-emerald-600 dark:text-emerald-400 text-sm mb-3 border-b border-slate-100 dark:border-slate-700 pb-2">JURI DLH (Kategori I)</h4>
+                    <div className="space-y-2">
+                      {[ { id: "1.1", lbl: "1. Pemilahan Sampah" }, { id: "1.2", lbl: "2. Pengumpulan" }, { id: "1.3", lbl: "3. Keaktifan Nasabah" }, { id: "1.4", lbl: "4. Kelengkapan Buku" }, { id: "1.5", lbl: "5. Pemanfaatan" }, { id: "1.6", lbl: "6. Catat Organik" }, { id: "1.7", lbl: "7. Laporan" } ].map(item => (
+                        <div key={item.id} className="flex justify-between items-center text-xs">
+                          <label className="font-bold text-slate-600 dark:text-slate-300">{item.lbl}</label>
+                          <input type="number" min="0" value={skorVerlap[item.id] || ""} onChange={(e) => handleInputVerlap(item.id, e.target.value)} className="w-16 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-900 text-center font-black focus:border-emerald-500 outline-none" placeholder="0" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* DKK */}
+                  <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <h4 className="font-black text-emerald-600 dark:text-emerald-400 text-sm mb-3 border-b border-slate-100 dark:border-slate-700 pb-2">JURI DKK (Kategori II)</h4>
+                    <div className="space-y-2">
+                      {[ { id: "2.1", lbl: "1. Ruang Pelayanan" }, { id: "2.2", lbl: "2. Area Penyimpanan" }, { id: "2.3", lbl: "3. Peralatan Memadai" }, { id: "2.4", lbl: "4. Kebersihan & Aman" } ].map(item => (
+                        <div key={item.id} className="flex justify-between items-center text-xs">
+                          <label className="font-bold text-slate-600 dark:text-slate-300">{item.lbl}</label>
+                          <input type="number" min="0" value={skorVerlap[item.id] || ""} onChange={(e) => handleInputVerlap(item.id, e.target.value)} className="w-16 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-900 text-center font-black focus:border-emerald-500 outline-none" placeholder="0" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* KOLOM KANAN (BSI & PMD) */}
+                <div className="space-y-6">
+                  {/* BSI */}
+                  <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <h4 className="font-black text-emerald-600 dark:text-emerald-400 text-sm mb-3 border-b border-slate-100 dark:border-slate-700 pb-2">JURI BSI (Kategori III)</h4>
+                    <div className="space-y-2">
+                      {[ { id: "3.1", lbl: "1. Usia Pendirian" }, { id: "3.2", lbl: "2. Papan Nama/SK" }, { id: "3.3", lbl: "3. Pembagian Tugas" }, { id: "3.4", lbl: "4. SOP Tertulis" }, { id: "3.5", lbl: "5. Jadwal Timbang" }, { id: "3.6", lbl: "6. Dokumentasi" } ].map(item => (
+                        <div key={item.id} className="flex justify-between items-center text-xs">
+                          <label className="font-bold text-slate-600 dark:text-slate-300">{item.lbl}</label>
+                          <input type="number" min="0" value={skorVerlap[item.id] || ""} onChange={(e) => handleInputVerlap(item.id, e.target.value)} className="w-16 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-900 text-center font-black focus:border-emerald-500 outline-none" placeholder="0" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* PMD */}
+                  <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <h4 className="font-black text-emerald-600 dark:text-emerald-400 text-sm mb-3 border-b border-slate-100 dark:border-slate-700 pb-2">JURI PMD (Kat IV & V)</h4>
+                    <div className="space-y-2">
+                      {[ { id: "4.1", lbl: "Inovasi Pengelolaan" }, { id: "5.1", lbl: "Keterlibatan Desa" } ].map(item => (
+                        <div key={item.id} className="flex justify-between items-center text-xs">
+                          <label className="font-bold text-slate-600 dark:text-slate-300">{item.lbl}</label>
+                          <input type="number" min="0" value={skorVerlap[item.id] || ""} onChange={(e) => handleInputVerlap(item.id, e.target.value)} className="w-16 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-900 text-center font-black focus:border-emerald-500 outline-none" placeholder="0" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </div>
 
-            {/* Tombol Simpan */}
-            <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
+            {/* Footer / Tombol Simpan & Kalkulasi Live */}
+            <div className="p-4 md:p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Kalkulasi Skor Verlap:</span>
+                <span className="text-3xl font-black text-emerald-600 leading-none mt-1">
+                  {hitungSkorAkhirVerlap()} <span className="text-sm text-slate-400">/ 100</span>
+                </span>
+              </div>
               <button 
                 onClick={handleSimpanVerlap}
                 disabled={modalVerlap.isSaving}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black py-3 rounded-xl shadow-md active:scale-95 transition-all uppercase tracking-widest text-xs flex justify-center items-center gap-2"
+                className="w-full md:w-auto px-8 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black py-3 md:py-4 rounded-xl shadow-lg active:scale-95 transition-all uppercase tracking-widest text-xs flex justify-center items-center gap-2"
               >
-                {modalVerlap.isSaving ? "Menyimpan..." : "💾 Simpan Nilai Verlap"}
+                {modalVerlap.isSaving ? "MENYIMPAN..." : "💾 SIMPAN & KUNCI VERLAP"}
               </button>
             </div>
 
