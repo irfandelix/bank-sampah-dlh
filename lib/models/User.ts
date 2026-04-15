@@ -36,6 +36,15 @@ const userSchema = new mongoose.Schema({
   skorTotal: { type: Number, default: 0 },
   skor: { type: Number, default: 0 },
 
+  // =======================================
+  // 4. DATA VERIFIKASI LAPANGAN
+  // =======================================
+  verlapDLH: { type: Number, default: 0 },
+  verlapDKK: { type: Number, default: 0 },
+  verlapBSI: { type: Number, default: 0 },
+  verlapPMD: { type: Number, default: 0 },
+  nilai_verlap: { type: Number, default: 0 },
+
 }, { timestamps: true });
 
 // Mencegah Next.js membuat model ganda saat server di-restart
