@@ -18,24 +18,33 @@ export async function GET() {
         username: p.username,
         namaInstansi: p.namaInstansi,
         kecamatan: p.kecamatan,
-        skor: p.skor || 0,
-        // 🔥 INI RAHASIANYA: Pastikan nilai juri ini ikut dikirim ke depan!
+        skor: p.skor || 0, // Ini Total Nilai Administrasi
         skorDLH: p.skorDLH || 0,
         skorDKK: p.skorDKK || 0,
         skorBSI: p.skorBSI || 0,
         skorPMD: p.skorPMD || 0,
-      }))
-      .sort((a, b) => b.skor - a.skor); // Urutkan dari skor tertinggi ke terendah
+        
+        // 🔥 TAMBAHAN WAJIB: Biar Frontend bisa baca nilai Verlap & Detailnya!
+        nilai_verlap: p.nilai_verlap || 0,       // Total Skor Verlap
+        detail_verlap: p.detail_verlap || {},   // Rincian kuesioner per poin
+        tingkat_verlap: p.tingkat_verlap || "RW" // Tingkat wilayahnya
+      }));
 
     // Hitung statistik untuk kotak-kotak di atas Dashboard
     const totalPeserta = klasemen.length;
+    
+    // Statistik berdasarkan Administrasi (biar tetep stabil)
     const sudahDinilai = klasemen.filter((k) => k.skor > 0).length;
-    const tertinggi = klasemen.length > 0 && klasemen[0].skor > 0 
-      ? { skor: klasemen[0].skor.toFixed(2), nama: klasemen[0].namaInstansi } 
+    
+    // Klasemen Tertinggi (Default Administrasi buat header stats)
+    const klasemenSortedAdm = [...klasemen].sort((a, b) => b.skor - a.skor);
+    const tertinggi = klasemenSortedAdm.length > 0 && klasemenSortedAdm[0].skor > 0 
+      ? { skor: klasemenSortedAdm[0].skor.toFixed(2), nama: klasemenSortedAdm[0].namaInstansi } 
       : { skor: "-", nama: "Belum Ada Data" };
 
     return NextResponse.json({
-      klasemen,
+      // Kita kirim klasemen mentah, nanti urusan sorting biar diurus 2 Tab di Frontend
+      klasemen, 
       stats: { totalPeserta, sudahDinilai, tertinggi }
     }, { status: 200 });
 
