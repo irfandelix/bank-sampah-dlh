@@ -1,11 +1,12 @@
 "use client";
 
 import { MapContainer, TileLayer, GeoJSON, Marker, Popup } from "react-leaflet";
+// @ts-ignore
 import "leaflet/dist/leaflet.css";
 import { useEffect, useState } from "react";
 import L from "leaflet";
 
-// 🛠️ KUNCI SAKTI: Fix icon bawaan Leaflet biar pin lokasinya muncul di Next.js
+// 🛠️ Icon fix untuk Next.js
 const iconBawaan = L.icon({
   iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
   iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
@@ -15,7 +16,6 @@ const iconBawaan = L.icon({
   popupAnchor: [1, -34],
 });
 
-// 🛠️ TAMBAHAN: Tambahkan `dataPeserta` di dalam kurung Props
 export default function PetaSragen({ dataKlasemen = [], dataPeserta = [] }: { dataKlasemen?: any[], dataPeserta?: any[] }) {
   const [geoData, setGeoData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,95 +34,80 @@ export default function PetaSragen({ dataKlasemen = [], dataPeserta = [] }: { da
     return () => setMounted(false);
   }, []);
 
+  // 1. 🎯 KUNCI SINKRONISASI: Sortir data berdasarkan skor tertinggi agar Juara 1 akurat di Peta
+  const klasemenTerurut = [...dataKlasemen].sort((a, b) => (Number(b.skor) || 0) - (Number(a.skor) || 0));
+
   const styleWilayah = (feature: any) => {
     const namaKecPeta = feature.properties.kecamatan || ""; 
     
-    // 1. Cari index/peringkat di klasemen
-    const peringkatIndex = dataKlasemen.findIndex((k) => 
+    const peringkatIndex = klasemenTerurut.findIndex((k) => 
       k.kecamatan && k.kecamatan.toString().toLowerCase().trim() === namaKecPeta.toLowerCase().trim()
     );
 
-    const dataKec = peringkatIndex !== -1 ? dataKlasemen[peringkatIndex] : null;
+    const dataKec = peringkatIndex !== -1 ? klasemenTerurut[peringkatIndex] : null;
     const skor = dataKec ? dataKec.skor : 0;
 
-    // 2. Tentukan Warna Berdasarkan Peringkat (Juara 1-3)
-    let warnaWilayah = "#334155"; // Warna default (abu tua)
+    let warnaWilayah = "#334155"; // Default
 
-    if (peringkatIndex === 0) {
-      warnaWilayah = "#10b981"; // Juara 1: Hijau Emerald Menyala
-    } else if (peringkatIndex === 1) {
-      warnaWilayah = "#f59e0b"; // Juara 2: Amber/Emas
-    } else if (peringkatIndex === 2) {
-      warnaWilayah = "#ea580c"; // Juara 3: Orange/Perunggu
+    if (peringkatIndex === 0 && skor > 0) {
+      warnaWilayah = "#10b981"; // Juara 1: Emerald (Gemolong)
+    } else if (peringkatIndex === 1 && skor > 0) {
+      warnaWilayah = "#f59e0b"; // Juara 2: Amber
+    } else if (peringkatIndex === 2 && skor > 0) {
+      warnaWilayah = "#ea580c"; // Juara 3: Orange
     } else if (skor > 0) {
-      warnaWilayah = "#475569"; // Peserta lain yang sudah ada nilai
+      warnaWilayah = "#475569"; // Peserta lain
     }
 
     return {
       fillColor: warnaWilayah,
-      color: peringkatIndex < 3 && peringkatIndex !== -1 ? "#fff" : "#1e293b", // Border putih buat Top 3
-      weight: peringkatIndex === 0 ? 3 : 1, // Garis tepi lebih tebal buat Juara 1
+      color: peringkatIndex < 3 && peringkatIndex !== -1 && skor > 0 ? "#fff" : "#1e293b",
+      weight: peringkatIndex === 0 && skor > 0 ? 3 : 1,
       opacity: 1,
       fillOpacity: 0.8,
     };
   };
 
   const onEachFeature = (feature: any, layer: any) => {
-    // 1. Ambil nama murni tanpa embel-embel
     const namaKecPeta = feature.properties.kecamatan || feature.properties.name || "";
     
-    // 2. Cari peringkat
-    const peringkatIndex = dataKlasemen.findIndex((k) => 
+    const peringkatIndex = klasemenTerurut.findIndex((k) => 
       k.kecamatan && k.kecamatan.toString().toLowerCase().trim() === namaKecPeta.toLowerCase().trim()
     );
 
-    // 3. Susun Label (Tanpa kata "Kecamatan")
-    let labelStatus = namaKecPeta; // Default cuma nama: "SRAGEN", "TANON", dll.
+    const skor = peringkatIndex !== -1 ? klasemenTerurut[peringkatIndex].skor : 0;
 
-    if (peringkatIndex === 0) labelStatus = `🏆 JUARA 1: ${namaKecPeta}`;
-    else if (peringkatIndex === 1) labelStatus = `🥈 JUARA 2: ${namaKecPeta}`;
-    else if (peringkatIndex === 2) labelStatus = `🥉 JUARA 3: ${namaKecPeta}`;
+    let labelStatus = namaKecPeta;
+    if (peringkatIndex === 0 && skor > 0) labelStatus = `🏆 JUARA 1: ${namaKecPeta}`;
+    else if (peringkatIndex === 1 && skor > 0) labelStatus = `🥈 JUARA 2: ${namaKecPeta}`;
+    else if (peringkatIndex === 2 && skor > 0) labelStatus = `🥉 JUARA 3: ${namaKecPeta}`;
 
     layer.bindTooltip(labelStatus, {
       permanent: true,
       direction: "center",
-      className: `label-kecamatan ${peringkatIndex < 3 && peringkatIndex !== -1 ? 'label-juara' : ''}`,
+      className: `label-kecamatan ${peringkatIndex < 3 && peringkatIndex !== -1 && skor > 0 ? 'label-juara' : ''}`,
     });
 
-    // Popup juga kita bersihkan biar nggak dobel-dobel
-    layer.bindPopup(`<b>${namaKecPeta}</b><br/>Skor: ${peringkatIndex !== -1 ? dataKlasemen[peringkatIndex].skor : 0}`);
+    layer.bindPopup(`<b>${namaKecPeta}</b><br/>Skor: ${skor}`);
   };
 
   if (!mounted || typeof window === "undefined") return null;
   if (error) return <div className="p-10 text-red-500 font-bold">Error: {error}</div>;
-  if (!geoData) return <div className="p-10 text-center font-bold text-slate-400 font-sans uppercase tracking-widest text-[10px]">Sinkronisasi Koordinat...</div>;
+  if (!geoData) return <div className="p-10 text-center font-bold text-slate-400 uppercase tracking-widest text-[10px]">Sinkronisasi Koordinat...</div>;
 
   return (
-    // Background diubah jadi slate-50 biar senada dengan light mode dashboard
     <div className="w-full h-full relative bg-slate-50 overflow-hidden rounded-[2rem]">
-      {/* CSS untuk Label */}
       <style dangerouslySetInnerHTML={{ __html: `
         .label-kecamatan {
-          background: transparent !important;
-          border: none !important;
-          box-shadow: none !important;
-          color: #f8fafc !important; /* Warna teks putih terang */
-          font-weight: 900 !important;
-          font-size: 9px !important;
-          text-transform: uppercase;
-          text-shadow: 0px 0px 5px rgba(0,0,0,0.9);
-          pointer-events: none;
-        }
-        .leaflet-container {
-          background: #f8fafc !important;
-          border-radius: 2rem !important;
+          background: transparent !important; border: none !important; box-shadow: none !important;
+          color: #f8fafc !important; font-weight: 900 !important; font-size: 9px !important;
+          text-transform: uppercase; text-shadow: 0px 0px 5px rgba(0,0,0,0.9); pointer-events: none;
         }
         .label-juara {
-          color: #ffffff !important;
-          font-size: 11px !important;
-          text-shadow: 0px 0px 8px rgba(0,0,0,1) !important;
-          letter-spacing: 0.05em;
+          color: #ffffff !important; font-size: 11px !important;
+          text-shadow: 0px 0px 8px rgba(0,0,0,1) !important; letter-spacing: 0.05em;
         }
+        .leaflet-container { background: #f8fafc !important; border-radius: 2rem !important; }
       `}} />
 
       <MapContainer 
@@ -132,24 +117,17 @@ export default function PetaSragen({ dataKlasemen = [], dataPeserta = [] }: { da
         zoomControl={false}
         preferCanvas={true}
       >
-        <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-        />
+        <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
         
-        {/* LAYER 1: Poligon Kecamatan Klasemen */}
         <GeoJSON 
-          key={JSON.stringify(dataKlasemen)} 
+          key={JSON.stringify(klasemenTerurut)} 
           data={geoData} 
           style={styleWilayah} 
           onEachFeature={onEachFeature} 
         />
 
-        {/* ============================================== */}
-        {/* LAYER 2: Marker Titik Koordinat Peserta */}
-        {/* ============================================== */}
         {dataPeserta && dataPeserta.length > 0 && dataPeserta.map((peserta, idx) => {
           if (!peserta.koordinat) return null;
-          
           const coords = peserta.koordinat.split(",").map((c: string) => parseFloat(c.trim()));
           if (coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) return null;
 
@@ -157,16 +135,14 @@ export default function PetaSragen({ dataKlasemen = [], dataPeserta = [] }: { da
             <Marker key={`marker-${idx}`} position={[coords[0], coords[1]]} icon={iconBawaan}>
               <Popup className="rounded-xl">
                 <div className="text-center p-1">
-                  <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Lokasi Bank Sampah</p>
-                  <h3 className="font-black text-slate-800 text-sm leading-tight">{peserta.namaBank}</h3>
+                  <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Lokasi Bank Sampah</p>
+                  <h3 className="font-black text-slate-800 text-sm">{peserta.namaBank}</h3>
                   <p className="text-xs text-slate-500 mt-1">{peserta.alamat}</p>
                 </div>
               </Popup>
             </Marker>
           );
         })}
-        {/* ============================================== */}
-
       </MapContainer>
     </div>
   );
