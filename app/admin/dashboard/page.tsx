@@ -46,7 +46,19 @@ export default function AdminDashboard() {
   const prevKlasemenRef = useRef<any[]>([]);
   const [changedIds, setChangedIds] = useState<string[]>([]);
 
-  // ================= STATE & FUNGSI MODAL VERLAP (MANUAL INPUT FULL INDIKATOR) =================
+  // ================= 🌟 TAB KLASEMEN 🌟 =================
+  const [tabKlasemen, setTabKlasemen] = useState<"adm" | "verlap">("adm");
+
+  const klasemenSorted = [...klasemen].sort((a, b) => {
+    if (tabKlasemen === "adm") {
+      return (Number(b.skor) || 0) - (Number(a.skor) || 0);
+    } else {
+      return (Number(b.nilai_verlap) || 0) - (Number(a.nilai_verlap) || 0);
+    }
+  });
+  // ========================================================
+
+  // ================= 🌟 MODAL VERLAP (FULL INDIKATOR) 🌟 =================
   const [modalVerlap, setModalVerlap] = useState({
     isOpen: false,
     username: "",
@@ -58,7 +70,6 @@ export default function AdminDashboard() {
   const [tingkatVerlap, setTingkatVerlap] = useState<"RT" | "RW">("RW");
 
   const bukaModalVerlap = (peserta: any) => {
-    // Reset form setiap kali modal dibuka, kalau mau narik data lama (edit) sesuaikan di sini
     setSkorVerlap(peserta.detail_verlap || {}); 
     setTingkatVerlap(peserta.tingkat_verlap || "RW");
     setModalVerlap({
@@ -108,7 +119,7 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           username: modalVerlap.username,
           nilai_verlap: nilaiAkhir,
-          detail_verlap: skorVerlap, // Simpan logikanya dalam bentuk JSON
+          detail_verlap: skorVerlap,
           tingkat_verlap: tingkatVerlap
         })
       });
@@ -242,29 +253,53 @@ export default function AdminDashboard() {
           })()}
         </div>
 
-        {/* PETA & KLASEMEN */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-          <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl md:rounded-[2.5rem] border border-slate-200 dark:border-slate-800 overflow-hidden h-[350px] md:h-[550px] relative shadow-sm">
-             <PetaSragen dataKlasemen={klasemen} dataPeserta={profilPeserta} />
-             <div className="absolute top-4 left-4 z-10 bg-white/90 dark:bg-slate-800/90 backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border border-slate-200 dark:border-slate-700 text-[9px] md:text-[10px] font-bold text-slate-600 dark:text-slate-300 tracking-widest uppercase shadow-sm">
-                Peta Sebaran Real-Time
-             </div>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 rounded-3xl md:rounded-[2.5rem] border border-slate-200 dark:border-slate-800 p-5 md:p-6 lg:col-span-1 h-[400px] md:h-[550px] flex flex-col overflow-hidden shadow-sm">
-            <div className="flex justify-between items-center mb-4 md:mb-6">
-               <h2 className="text-lg md:text-xl font-black text-slate-800 dark:text-white">Klasemen</h2>
-               <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 px-2.5 py-1 md:px-3 md:py-1 rounded-full border border-emerald-100 dark:border-emerald-800">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span className="text-[9px] md:text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase">Live</span>
-               </div>
+          {/* PETA & KLASEMEN 2 TAB */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+            <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl md:rounded-[2.5rem] border border-slate-200 dark:border-slate-800 overflow-hidden h-[350px] md:h-[550px] relative shadow-sm">
+              {/* Trik: Ganti isi 'skor' otomatis ngikutin Tab yang lagi diklik */}
+              <PetaSragen 
+                dataKlasemen={klasemen.map(item => ({
+                  ...item,
+                  skor: tabKlasemen === "adm" ? item.skor : (item.nilai_verlap || 0)
+                }))} 
+                dataPeserta={profilPeserta} 
+              />
+              
+              {/* Indikator Mode Peta */}
+              <div className="absolute top-4 left-4 z-10 bg-white/90 dark:bg-slate-800/90 backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border border-slate-200 dark:border-slate-700 text-[9px] md:text-[10px] font-bold text-slate-600 dark:text-slate-300 tracking-widest uppercase shadow-sm flex items-center gap-2">
+                  <span>🗺️ Peta Sebaran</span>
+                  <span className={`px-2 py-0.5 rounded text-[8px] md:text-[9px] text-white shadow-inner ${tabKlasemen === 'adm' ? 'bg-amber-500' : 'bg-emerald-500'}`}>
+                    {tabKlasemen === 'adm' ? 'MODE: ADM' : 'MODE: VERLAP'}
+                  </span>
+              </div>
             </div>
+
+            {/* TAB SWITCHER KLASEMEN */}
+            <div className="flex gap-1.5 mb-4 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl shrink-0">
+               <button
+                 onClick={() => setTabKlasemen("adm")}
+                 className={`flex-1 py-1.5 md:py-2 text-[10px] md:text-xs font-extrabold rounded-lg transition-all uppercase tracking-widest ${tabKlasemen === "adm" ? "bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
+               >
+                 Administrasi
+               </button>
+               <button
+                 onClick={() => setTabKlasemen("verlap")}
+                 className={`flex-1 py-1.5 md:py-2 text-[10px] md:text-xs font-extrabold rounded-lg transition-all uppercase tracking-widest ${tabKlasemen === "verlap" ? "bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
+               >
+                 Verifikasi Lpg.
+               </button>
+            </div>
+
             <div className="space-y-3 overflow-y-auto pr-2 flex-1 custom-scrollbar-light scroll-smooth">
               {loading ? (
                 <div className="flex items-center justify-center h-full opacity-50"><div className="w-8 h-8 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin"></div></div>
+              ) : klasemenSorted.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-slate-400 font-bold text-xs">Belum ada data</div>
               ) : (
-                klasemen.map((kec, index) => {
+                klasemenSorted.map((kec, index) => {
                   const isHighlight = changedIds.includes(kec.username);
+                  const nilaiTampil = tabKlasemen === "adm" ? Number(kec.skor || 0).toFixed(2) : Number(kec.nilai_verlap || 0).toFixed(2);
+                  
                   return (
                     <div key={kec.username} className={`p-3 md:p-4 rounded-2xl border transition-all duration-700 ${
                         isHighlight ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-400 scale-[1.02] shadow-sm" :
@@ -282,7 +317,7 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                         <div className="text-right pl-2">
-                          <p className={`text-lg md:text-xl font-black ${isHighlight ? 'text-emerald-600 dark:text-emerald-400 animate-bounce' : 'text-slate-800 dark:text-white'}`}>{Number(kec.skor).toFixed(2)}</p>
+                          <p className={`text-lg md:text-xl font-black ${isHighlight ? 'text-emerald-600 dark:text-emerald-400 animate-bounce' : 'text-slate-800 dark:text-white'}`}>{nilaiTampil}</p>
                         </div>
                       </div>
                     </div>
@@ -443,17 +478,15 @@ export default function AdminDashboard() {
                         </td>
                         <td className="py-2 md:py-3 pb-3 md:pb-4 text-center">
                           {peserta.nilai_verlap ? (
-                            <div className="flex items-center justify-center gap-3">
-                              <span className="text-lg font-black text-emerald-600 bg-white px-3 py-1 rounded-lg border-2 border-emerald-200 shadow-sm">
-                                {peserta.nilai_verlap}
-                              </span>
-                              <button 
-                                onClick={() => bukaModalVerlap(peserta)}
-                                className="text-[10px] bg-amber-100 text-amber-700 px-2 py-1 rounded font-bold hover:bg-amber-200 border border-amber-300 shadow-sm transition-colors"
-                              >
-                                ✏️ Edit
-                              </button>
-                            </div>
+                            <button
+                              onClick={() => bukaModalVerlap(peserta)}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-1.5 px-4 rounded-xl text-sm shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 mx-auto min-w-[80px] border-2 border-emerald-500"
+                              title="Klik untuk Edit Nilai Verlap"
+                            >
+                              <span className="text-[10px] opacity-80 font-bold uppercase tracking-tighter">Skor:</span>
+                              <span className="text-base">{peserta.nilai_verlap}</span>
+                              <span className="text-[10px]">✏️</span>
+                            </button>
                           ) : (
                             <button
                               onClick={() => bukaModalVerlap(peserta)}
