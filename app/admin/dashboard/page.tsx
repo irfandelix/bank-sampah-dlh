@@ -279,25 +279,33 @@ export default function AdminDashboard() {
           })()}
         </div>
 
-        {/* PETA & KLASEMEN 2 TAB */}
+        {/* ================= PETA & KLASEMEN 2 TAB SINKRON ================= */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+          
+          {/* SISI KIRI: PETA SEBARAN */}
           <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl md:rounded-[2.5rem] border border-slate-200 dark:border-slate-800 overflow-hidden h-[350px] md:h-[550px] relative shadow-sm">
              <PetaSragen 
                dataKlasemen={klasemen.map(item => ({
                  ...item,
-                 skor: tabKlasemen === "adm" ? item.skor : (item.nilai_verlap || 0)
+                 // 🎯 Peta ikutan Tab: kirim skor adm atau nilai_verlap
+                 skor: tabKlasemen === "adm" ? Number(item.skor || 0) : Number(item.nilai_verlap || 0)
                }))} 
                dataPeserta={profilPeserta} 
              />
+             
+             {/* Indikator Mode Peta */}
              <div className="absolute top-4 left-4 z-10 bg-white/90 dark:bg-slate-800/90 backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border border-slate-200 dark:border-slate-700 text-[9px] md:text-[10px] font-bold text-slate-600 dark:text-slate-300 tracking-widest uppercase shadow-sm flex items-center gap-2">
                 <span>🗺️ Peta Sebaran</span>
-                <span className={`px-2 py-0.5 rounded text-[8px] md:text-[9px] text-white shadow-inner ${tabKlasemen === 'adm' ? 'bg-amber-500' : 'bg-emerald-500'}`}>
+                <span className={`px-2 py-0.5 rounded text-[8px] md:text-[9px] text-white shadow-inner transition-colors duration-500 ${tabKlasemen === 'adm' ? 'bg-amber-500' : 'bg-emerald-500'}`}>
                   {tabKlasemen === 'adm' ? 'MODE: ADM' : 'MODE: VERLAP'}
                 </span>
              </div>
           </div>
 
+          {/* SISI KANAN: KLASEMEN DENGAN TAB SWITCHER */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl md:rounded-[2.5rem] border border-slate-200 dark:border-slate-800 p-5 md:p-6 lg:col-span-1 h-[400px] md:h-[550px] flex flex-col overflow-hidden shadow-sm">
+            
+            {/* Header Klasemen */}
             <div className="flex justify-between items-center mb-3 md:mb-4">
                <h2 className="text-lg md:text-xl font-black text-slate-800 dark:text-white">Klasemen</h2>
                <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 px-2.5 py-1 md:px-3 md:py-1 rounded-full border border-emerald-100 dark:border-emerald-800">
@@ -306,7 +314,7 @@ export default function AdminDashboard() {
                </div>
             </div>
 
-            {/* TAB SWITCHER KLASEMEN */}
+            {/* TAB SWITCHER */}
             <div className="flex gap-1.5 mb-4 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl shrink-0">
                <button
                  onClick={() => setTabKlasemen("adm")}
@@ -322,11 +330,14 @@ export default function AdminDashboard() {
                </button>
             </div>
 
+            {/* LIST KLASEMEN SCROLLABLE */}
             <div className="space-y-3 overflow-y-auto pr-2 flex-1 custom-scrollbar-light scroll-smooth">
               {loading ? (
-                <div className="flex items-center justify-center h-full opacity-50"><div className="w-8 h-8 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin"></div></div>
+                <div className="flex items-center justify-center h-full opacity-50">
+                  <div className="w-8 h-8 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin"></div>
+                </div>
               ) : klasemenSorted.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-slate-400 font-bold text-xs">Belum ada data</div>
+                <div className="flex items-center justify-center h-full text-slate-400 font-bold text-xs uppercase">Belum ada data</div>
               ) : (
                 klasemenSorted.map((kec, index) => {
                   const isHighlight = changedIds.includes(kec.username);
